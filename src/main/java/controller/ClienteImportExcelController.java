@@ -9,7 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 import service.ClienteImportExcelService;
 
 @RestController
-@RequestMapping("/api/clientes/import")
+@RequestMapping("clientes")
 public class ClienteImportExcelController {
     @Autowired
     private final ClienteImportExcelService service;
@@ -18,8 +18,8 @@ public class ClienteImportExcelController {
         this.service = service;
     }
 
-    @PostMapping
-    public String importar(@RequestParam("file") MultipartFile file) {
+    @PostMapping("import")
+    public String importarClientes(@RequestParam("file") MultipartFile file) {
         int total = service.importarClientes(file);
         return "Clientes importados: " + total;
     }

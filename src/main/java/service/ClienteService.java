@@ -12,6 +12,7 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
@@ -49,22 +50,6 @@ public class ClienteService {
         return pagoRepo.findFirstByClienteIdAndFechaPagoBetween(clienteId, inicio, fin).isPresent();
     }
 
-    private int mesesAdeudados(Long clienteId) {
-
-        Optional<LocalDate> ultimoPago = pagoRepo
-                .findTopByClienteIdOrderByFechaPagoDesc(clienteId)
-                .map(Pago::getFechaPago);
-
-        if (ultimoPago.isEmpty()) {
-            return 0;
-        }
-
-        LocalDate ultimo = ultimoPago.get().withDayOfMonth(1);
-        LocalDate actual = LocalDate.now().withDayOfMonth(1);
-
-        return (int) ChronoUnit.MONTHS.between(ultimo.plusMonths(1), actual.plusMonths(1));
-    }
-
 
     public Page<ClienteResp> findPaged(
             int page,
@@ -94,15 +79,56 @@ public class ClienteService {
         );
     }
 
+    public List<ClienteResp> buscarClientesDeudores(Boolean soloDeudores, String nombre) {
+
+        List<Cliente> clientes = (nombre == null || nombre.isBlank())
+                ? clienteRepo.findAll()
+                : clienteRepo.findByNombreContainingIgnoreCase(nombre);
+
+        return clientes.stream()
+                .map(this::castToResponse)
+                .filter(r ->
+                        !Boolean.TRUE.equals(soloDeudores) || r.getMesesAdeudados() > 0
+                )
+                .toList();
+    }
+
+
+    private int calcularMesesAdeudados(YearMonth ultimoPeriodoPagado) {
+        YearMonth actual = YearMonth.now();
+
+        if (ultimoPeriodoPagado == null) {
+            return 1; // nunca pagó
+        }
+
+        return (int) ChronoUnit.MONTHS.between(
+                ultimoPeriodoPagado.plusMonths(1),
+                actual.plusMonths(1)
+        );
+    }
 
     private ClienteResp castToResponse(Cliente cliente) {
-        boolean deuda = !pagoMesActual(cliente.getId());
+
+        Pago ultimoPago = pagoRepo
+                .findTopByClienteIdOrderByPeriodoPagadoDesc(cliente.getId())
+                .orElse(null);
+
+        int mesesAdeudados = (ultimoPago != null)
+                ? calcularMesesAdeudados(ultimoPago.getPeriodoPagado())
+                : calcularMesesAdeudados(null);
+
+        boolean deuda = mesesAdeudados > 0;
+
         return new ClienteResp(
-            cliente.getId(),
-            cliente.getNombre(),
-            cliente.getTelefono(),
-            cliente.getDireccion(),
-            deuda
-            );
+                cliente.getId(),
+                cliente.getNombre(),
+                cliente.getTelefono(),
+                cliente.getDireccion(),
+                deuda,
+                mesesAdeudados,
+                ultimoPago != null ? ultimoPago.getNota() : null
+        );
     }
+
+
 }

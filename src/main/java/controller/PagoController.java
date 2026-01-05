@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import service.PagoService;
 
 @RestController
-@RequestMapping("/api/pagos")
+@RequestMapping("pagos")
 public class PagoController {
     @Autowired
     private final PagoService service;

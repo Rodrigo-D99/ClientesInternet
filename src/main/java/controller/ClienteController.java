@@ -5,13 +5,14 @@ import dto.resp.ClienteResp;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import service.ClienteService;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/clientes")
+@RequestMapping("clientes")
 public class ClienteController {
     @Autowired
     private final ClienteService service;
@@ -20,20 +21,34 @@ public class ClienteController {
         this.service = service;
     }
 
-    @PostMapping
+    @PostMapping("")
     public ClienteResp crear(@Valid @RequestBody ClienteReq req) {
         return service.save(req);
     }
 
-    @GetMapping
-    public Page<ClienteResp> listar(
+    /**
+     * Listado paginado con filtros
+     */
+    @GetMapping("")
+    public ResponseEntity<Page<ClienteResp>> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false) Boolean deudores,
             @RequestParam(required = false) String nombre
     ) {
-        return service.findPaged(page, size, deudores, nombre);
+        return ResponseEntity.ok(service.findPaged(page, size, deudores, nombre));
     }
 
-
+    /**
+     * Listado completo SOLO deudores (sin paginar)
+     * Ideal para exportar
+     */
+    @GetMapping("/deudores")
+    public ResponseEntity<?> listarDeudores(
+            @RequestParam(required = false) String nombre
+    ) {
+        return ResponseEntity.ok(
+                service.buscarClientesDeudores(true, nombre)
+        );
+    }
 }

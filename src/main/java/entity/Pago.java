@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "pagos")
@@ -24,10 +26,11 @@ public class Pago {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    private YearMonth periodoPagado;
     private LocalDate fechaPago;
+
     @Column(length = 20)
     private String dniPagador;
-
     private String nota;
 
     @ManyToOne
