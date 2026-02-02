@@ -1,6 +1,6 @@
-package repository;
+package com.clientesinternet.repository;
 
-import entity.Pago;
+import com.clientesinternet.entity.Pago;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -13,7 +13,7 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
             LocalDate inicio,
             LocalDate fin
     );
-    Optional<Pago> findTopByClienteIdOrderByFechaPagoDesc(Long clienteId);
     Optional<Pago> findTopByClienteIdOrderByPeriodoPagadoDesc(Long clienteId);
+    Optional<Pago> findByClienteId(Long clienteId);
 
 }

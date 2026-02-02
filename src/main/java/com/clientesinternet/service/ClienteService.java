@@ -1,13 +1,14 @@
-package service;
+package com.clientesinternet.service;
 
-import dto.req.ClienteReq;
-import dto.resp.ClienteResp;
-import entity.Cliente;
-import entity.Pago;
+import com.clientesinternet.dto.req.ClienteReq;
+import com.clientesinternet.dto.resp.ClienteResp;
+import com.clientesinternet.entity.Cliente;
+import com.clientesinternet.entity.MedioPago;
+import com.clientesinternet.entity.Pago;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
-import repository.ClienteRepository;
-import repository.PagoRepository;
+import com.clientesinternet.repository.ClienteRepository;
+import com.clientesinternet.repository.PagoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +42,23 @@ public class ClienteService {
         cliente = clienteRepo.save(cliente);
         return castToResponse(cliente);
     }
+    @Transactional
+    public ClienteResp update(Long id, ClienteReq req) {
+        Cliente c = clienteRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+
+        if (req.getNombre() != null) {
+            c.setNombre(req.getNombre());
+        }
+        if (req.getTelefono() != null) {
+            c.setTelefono(req.getTelefono());
+        }
+        if (req.getDireccion() != null) {
+            c.setDireccion(req.getDireccion());
+        }
+        clienteRepo.save(c);
+        return castToResponse(c);
+    }
 
     private boolean pagoMesActual(Long clienteId) {
         LocalDate now = LocalDate.now();
@@ -49,6 +67,7 @@ public class ClienteService {
 
         return pagoRepo.findFirstByClienteIdAndFechaPagoBetween(clienteId, inicio, fin).isPresent();
     }
+
 
 
     public Page<ClienteResp> findPaged(
@@ -78,7 +97,10 @@ public class ClienteService {
                 clientes.getTotalElements()
         );
     }
-
+    public ClienteResp findById (Long id){
+       Cliente cliente = clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+        return castToResponse(cliente);
+    }
     public List<ClienteResp> buscarClientesDeudores(Boolean soloDeudores, String nombre) {
 
         List<Cliente> clientes = (nombre == null || nombre.isBlank())
@@ -109,15 +131,25 @@ public class ClienteService {
 
     private ClienteResp castToResponse(Cliente cliente) {
 
+        // Obtener el último pago del cliente
         Pago ultimoPago = pagoRepo
                 .findTopByClienteIdOrderByPeriodoPagadoDesc(cliente.getId())
                 .orElse(null);
 
+        // Calcular meses adeudados
         int mesesAdeudados = (ultimoPago != null)
                 ? calcularMesesAdeudados(ultimoPago.getPeriodoPagado())
                 : calcularMesesAdeudados(null);
 
         boolean deuda = mesesAdeudados > 0;
+
+        // Preparar medio de pago y DNI si existe pago
+        String medioPago = ultimoPago != null ? ultimoPago.getMedioPago().name() : null;
+        String dni = (ultimoPago != null && (ultimoPago.getMedioPago() == MedioPago.TRANSFERENCIA
+                || ultimoPago.getMedioPago() == MedioPago.TARJETA))
+                ? ultimoPago.getDniPagador()
+                : null;
+
 
         return new ClienteResp(
                 cliente.getId(),
@@ -126,9 +158,16 @@ public class ClienteService {
                 cliente.getDireccion(),
                 deuda,
                 mesesAdeudados,
-                ultimoPago != null ? ultimoPago.getNota() : null
+                medioPago,
+                dni,
+                ultimoPago != null ? ultimoPago.getNota() : null,
+                ultimoPago != null ? ultimoPago.getFechaPago() : null,
+                ultimoPago != null ? ultimoPago.getMonto() : null
         );
     }
 
 
+    public void delete(Long id) {
+        clienteRepo.delete(clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
+    }
 }

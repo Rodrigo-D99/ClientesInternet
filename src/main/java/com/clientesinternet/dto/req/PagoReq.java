@@ -1,6 +1,6 @@
-package dto.req;
+package com.clientesinternet.dto.req;
 
-import entity.MedioPago;
+import com.clientesinternet.entity.MedioPago;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.*;

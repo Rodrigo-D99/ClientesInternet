@@ -1,11 +1,11 @@
-package controller;
+package com.clientesinternet.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import service.ClienteExportExcelService;
+import com.clientesinternet.service.ClienteExportExcelService;
 
 @RestController
 @RequestMapping("clientes")
@@ -14,7 +14,7 @@ public class ClienteExportExcelController {
     @Autowired
     private ClienteExportExcelService service;
 
-    @GetMapping("/export")
+    @GetMapping("export")
     public ResponseEntity<byte[]> exportar(
             @RequestParam(required = false) Boolean deudores,
             @RequestParam(required = false) String nombre

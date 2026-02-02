@@ -1,19 +1,18 @@
-package service;
+package com.clientesinternet.service;
 
-import dto.req.PagoReq;
-import dto.resp.PagoResp;
-import entity.Cliente;
-import entity.MedioPago;
-import entity.Pago;
+import com.clientesinternet.dto.req.PagoReq;
+import com.clientesinternet.dto.resp.PagoResp;
+import com.clientesinternet.entity.Cliente;
+import com.clientesinternet.entity.MedioPago;
+import com.clientesinternet.entity.Pago;
 import org.springframework.beans.factory.annotation.Autowired;
-import repository.ClienteRepository;
-import repository.PagoRepository;
+import com.clientesinternet.repository.ClienteRepository;
+import com.clientesinternet.repository.PagoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 
 @Service
@@ -43,16 +42,22 @@ public class PagoService {
                 .dniPagador(req.getDniPagador())
                 .nota(req.getNota())
                 .fechaPago(LocalDate.now())
+                .periodoPagado(YearMonth.now())
                 .build();
 
         pagoRepo.save(pago);
-
         return new PagoResp(
                 pago.getId(),
                 advertencia.orElse(null)
         );
     }
+    @Transactional
+    public void actualizarNota(Long clienteId, String nota) {
+        Pago pago = pagoRepo.findByClienteId(clienteId)
+                .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
 
+        pago.setNota(nota);
+    }
     private Optional<String> validarDni(PagoReq req) {
         if (req.getMedioPago() != MedioPago.EFECTIVO &&
                 (req.getDniPagador() == null || req.getDniPagador().isBlank())) {

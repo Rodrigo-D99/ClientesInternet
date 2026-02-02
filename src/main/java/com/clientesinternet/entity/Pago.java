@@ -1,4 +1,4 @@
-package entity;
+package com.clientesinternet.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -6,7 +6,6 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 
 @Entity
 @Table(name = "pagos")

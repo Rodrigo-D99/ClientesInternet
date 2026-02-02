@@ -1,4 +1,4 @@
-package dto.req;
+package com.clientesinternet.dto.req;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;

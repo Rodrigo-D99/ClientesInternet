@@ -1,6 +1,6 @@
-package service;
+package com.clientesinternet.service;
 
-import entity.Cliente;
+import com.clientesinternet.entity.Cliente;
 import jakarta.transaction.Transactional;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -10,7 +10,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import repository.ClienteRepository;
+import com.clientesinternet.repository.ClienteRepository;
 
 @Service
 public class ClienteImportExcelService {

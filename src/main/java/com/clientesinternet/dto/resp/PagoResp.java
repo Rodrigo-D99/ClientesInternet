@@ -1,4 +1,4 @@
-package dto.resp;
+package com.clientesinternet.dto.resp;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

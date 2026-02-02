@@ -1,15 +1,17 @@
-package controller;
+package com.clientesinternet.controller;
 
-import dto.req.ClienteReq;
-import dto.resp.ClienteResp;
+import com.clientesinternet.dto.req.ClienteReq;
+import com.clientesinternet.dto.req.NotaReq;
+import com.clientesinternet.dto.req.PagoReq;
+import com.clientesinternet.dto.resp.ClienteResp;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import service.ClienteService;
+import com.clientesinternet.service.ClienteService;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("clientes")
@@ -22,10 +24,16 @@ public class ClienteController {
     }
 
     @PostMapping("")
-    public ClienteResp crear(@Valid @RequestBody ClienteReq req) {
-        return service.save(req);
+    public ResponseEntity<ClienteResp> crear(@Valid @RequestBody ClienteReq req) {
+        return ResponseEntity.ok(service.save(req));
     }
-
+    @PutMapping("/{id}")
+    public ResponseEntity<ClienteResp> modificarCliente(
+            @PathVariable Long id,
+            @RequestBody ClienteReq req) {
+        ClienteResp actualizado = service.update(id, req);
+        return ResponseEntity.ok(actualizado);
+    }
     /**
      * Listado paginado con filtros
      */
@@ -38,7 +46,15 @@ public class ClienteController {
     ) {
         return ResponseEntity.ok(service.findPaged(page, size, deudores, nombre));
     }
-
+    @GetMapping("/{id}")
+    public ResponseEntity<ClienteResp> getXId(@PathVariable Long id) {
+        return ResponseEntity.ok(service.findById(id));
+    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?>  borrarCliente(@PathVariable Long id) {
+         service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
     /**
      * Listado completo SOLO deudores (sin paginar)
      * Ideal para exportar
