@@ -23,17 +23,45 @@ function renderTable(clientes) {
             if (estaVigente) {
                 // Demo vigente
                 const diasRestantes = Math.ceil((fechaVencimiento - hoy) / (1000 * 60 * 60 * 24));
-                fibraTVCell = `<td><span class="badge bg-warning text-dark">DEMO</span><br><small>${c.usuarioFibraTV || ''} (${diasRestantes} días)</small></td>`;
+                fibraTVCell = `<td>
+                    <div class="fibra-tv-container">
+                        <div class="fibra-tv-row">
+                            <span class="badge bg-warning text-dark">DEMO</span>
+                            <small>${c.usuarioFibraTV || ''} (${diasRestantes} días)</small>
+                        </div>
+                    </div>
+                </td>`;
             } else {
                 // Demo expirada
-                fibraTVCell = `<td><span class="badge bg-danger">Expirada</span><br><small>${c.usuarioFibraTV || ''}</small> <button class="btn btn-sm btn-info" onclick="renovarFibraTV('${c.usuarioFibraTV || ''}')">Renovar</button></td>`;
+                fibraTVCell = `<td>
+                    <div class="fibra-tv-container">
+                        <div class="fibra-tv-row">
+                            <span class="badge bg-danger">Expirada</span>
+                            <small>${c.usuarioFibraTV || ''}</small>
+                        </div>
+                        <button class="btn btn-sm btn-info" onclick="renovarFibraTV('${c.usuarioFibraTV || ''}')">Renovar</button>
+                    </div>
+                </td>`;
             }
         } else if (c.tieneFibraTV) {
             // Subscripción activa
-            fibraTVCell = `<td><span class="badge bg-success">Sí</span><br><small>${c.usuarioFibraTV || ''}</small> <button class="btn btn-sm btn-info" onclick="renovarFibraTV('${c.usuarioFibraTV || ''}')">Renovar</button></td>`;
+            fibraTVCell = `<td>
+                <div class="fibra-tv-container">
+                    <div class="fibra-tv-row">
+                        <span class="badge bg-success">Sí</span>
+                        <small>${c.usuarioFibraTV || ''}</small>
+                    </div>
+                    <button class="btn btn-sm btn-info" onclick="renovarFibraTV('${c.usuarioFibraTV || ''}')">Renovar</button>
+                </div>
+            </td>`;
         } else {
             // Sin Fibra TV
-            fibraTVCell = `<td><span class="badge bg-danger">No</span> <button class="btn btn-sm btn-success" onclick="crearDemoFibraTV(${c.id})">Demo 5 días</button></td>`;
+            fibraTVCell = `<td>
+                <div class="fibra-tv-container">
+                    <span class="badge bg-danger">No</span>
+                    <button class="btn btn-sm btn-success" onclick="crearDemoFibraTV(${c.id})">Demo 5 días</button>
+                </div>
+            </td>`;
         }
 
         // Crear fila
@@ -57,25 +85,30 @@ function renderTable(clientes) {
             </td>
             <td>${c.fechaUltimoPago || ''}</td>
             <td>
-                <button class="btn btn-sm btn-warning"
-                        onclick="editarCliente(${c.id})">
-                    Editar
-                </button>
-                <button class="btn btn-sm btn-danger"
-                        onclick="eliminarCliente(${c.id})">
-                    Eliminar
-                </button>
-                ${c.mesesAdeudados > 0 && c.telefono ? `
-                <button class="btn btn-sm btn-success"
-                        onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>
-                    📱 WhatsApp
-                </button>
-                ` : ""}
+                <div class="actions-container">
+                    <button class="btn btn-sm btn-warning"
+                            onclick="editarCliente(${c.id})">
+                        Editar
+                    </button>
+                    <button class="btn btn-sm btn-danger"
+                            onclick="eliminarCliente(${c.id})">
+                        Eliminar
+                    </button>
+                    ${c.mesesAdeudados > 0 && c.telefono ? `
+                    <button class="btn btn-sm btn-success"
+                            onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>
+                        WhatsApp
+                    </button>
+                    ` : ""}
+                </div>
             </td>
         `;
 
         tbody.appendChild(tr);
     });
+    
+    // Actualizar contadores
+    actualizarContadores(clientes);
 }
 
 // Renderizar paginación
