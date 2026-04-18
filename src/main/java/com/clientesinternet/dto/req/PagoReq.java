@@ -21,6 +21,10 @@ public class PagoReq {
     @NotNull
     private MedioPago medioPago;
 
+    @Builder.Default
+    @Positive
+    private Integer cantidadMeses = 1;
+
     private String nota;
     private String dniPagador;
 

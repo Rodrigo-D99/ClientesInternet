@@ -1,13 +1,10 @@
 package com.clientesinternet.controller;
 
 import com.clientesinternet.dto.req.ClienteReq;
-import com.clientesinternet.dto.req.NotaReq;
-import com.clientesinternet.dto.req.PagoReq;
 import com.clientesinternet.dto.resp.ClienteResp;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.clientesinternet.service.ClienteService;
@@ -34,18 +31,36 @@ public class ClienteController {
         ClienteResp actualizado = service.update(id, req);
         return ResponseEntity.ok(actualizado);
     }
+    
+    @PatchMapping("/{id}")
+    public ResponseEntity<ClienteResp> actualizarParcial(
+            @PathVariable Long id,
+            @RequestBody ClienteReq req) {
+        ClienteResp actualizado = service.update(id, req);
+        return ResponseEntity.ok(actualizado);
+    }
     /**
      * Listado paginado con filtros
      */
-    @GetMapping("")
-    public ResponseEntity<Page<ClienteResp>> listar(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "50") int size,
+    @GetMapping
+    public Page<ClienteResp> listar(
+            @RequestParam (defaultValue = "0") int page,
+            @RequestParam (defaultValue = "5") int size,
+            @RequestParam(required = false) String nombre,
             @RequestParam(required = false) Boolean deudores,
-            @RequestParam(required = false) String nombre
+            @RequestParam(defaultValue = "nombre") String sort,
+            @RequestParam(defaultValue = "asc") String dir
     ) {
-        return ResponseEntity.ok(service.findPaged(page, size, deudores, nombre));
+        return service.findPaged(
+                page,
+                size,
+                deudores,
+                nombre,
+                sort,
+                dir
+        );
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<ClienteResp> getXId(@PathVariable Long id) {
         return ResponseEntity.ok(service.findById(id));
@@ -55,16 +70,5 @@ public class ClienteController {
          service.delete(id);
         return ResponseEntity.noContent().build();
     }
-    /**
-     * Listado completo SOLO deudores (sin paginar)
-     * Ideal para exportar
-     */
-    @GetMapping("/deudores")
-    public ResponseEntity<?> listarDeudores(
-            @RequestParam(required = false) String nombre
-    ) {
-        return ResponseEntity.ok(
-                service.buscarClientesDeudores(true, nombre)
-        );
-    }
+
 }

@@ -14,6 +14,11 @@ public class ClienteResp {
     private String direccion;
     private boolean tieneDeuda;
     private int mesesAdeudados;
+    private int mesesPagados;
+    private boolean tieneFibraTV;
+    private String usuarioFibraTV;
+    private boolean esDemo;
+    private LocalDate fechaVencimientoDemo;
     private String medioPago; // EFECTIVO, TRANSFERENCIA, TARJETA
     private String dni;       // solo si medioPago es transferencia/tarjeta
     private String nota;      // monto pagado o comentario

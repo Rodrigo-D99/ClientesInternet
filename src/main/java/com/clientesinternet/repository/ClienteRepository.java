@@ -4,6 +4,7 @@ package com.clientesinternet.repository;
 import com.clientesinternet.entity.Cliente;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,5 +14,12 @@ import java.util.List;
 public interface ClienteRepository  extends JpaRepository<Cliente, Long> {
     Page<Cliente> findAll(Pageable pageable);
 
-    List<Cliente> findByNombreContainingIgnoreCase(String nombre);
+    Page<Cliente> findByNombreContainingIgnoreCase(
+            String nombre,
+            Pageable pageable
+    );
+    List<Cliente> findByNombreContainingIgnoreCase(
+            String nombre,
+            Sort pageable
+    );
 }

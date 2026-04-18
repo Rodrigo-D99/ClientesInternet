@@ -17,7 +17,7 @@ public class ClienteExportExcelService {
 
     public byte[] generarExcel(Boolean soloDeudores, String nombre) {
 
-        List<ClienteResp> clientes = clienteService.buscarClientesDeudores(soloDeudores, nombre);
+        List<ClienteResp> clientes = clienteService.buscarClientesExcel(soloDeudores, nombre);
 
         try (Workbook workbook = new XSSFWorkbook();
              ByteArrayOutputStream out = new ByteArrayOutputStream()) {

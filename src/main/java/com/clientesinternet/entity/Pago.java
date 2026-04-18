@@ -25,6 +25,8 @@ public class Pago {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    @Builder.Default
+    private Integer cantidadMeses = 1;
     private YearMonth periodoPagado;
     private LocalDate fechaPago;
 

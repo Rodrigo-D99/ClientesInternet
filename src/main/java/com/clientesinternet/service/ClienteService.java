@@ -12,12 +12,11 @@ import com.clientesinternet.repository.PagoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAdjusters;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
+import java.util.Set;
 
 @Service("ClienteService")
 public class ClienteService {
@@ -37,6 +36,10 @@ public class ClienteService {
                 .nombre(req.getNombre())
                 .telefono(req.getTelefono())
                 .direccion(req.getDireccion())
+                .tieneFibraTV(req.getTieneFibraTV() != null ? req.getTieneFibraTV() : false)
+                .usuarioFibraTV(req.getUsuarioFibraTV())
+                .esDemo(req.getEsDemo() != null ? req.getEsDemo() : false)
+                .fechaVencimientoDemo(req.getFechaVencimientoDemo())
                 .build();
 
         cliente = clienteRepo.save(cliente);
@@ -56,41 +59,74 @@ public class ClienteService {
         if (req.getDireccion() != null) {
             c.setDireccion(req.getDireccion());
         }
+        if (req.getTieneFibraTV() != null) {
+            c.setTieneFibraTV(req.getTieneFibraTV());
+        }
+        if (req.getUsuarioFibraTV() != null) {
+            c.setUsuarioFibraTV(req.getUsuarioFibraTV());
+        }
+        if (req.getEsDemo() != null) {
+            c.setEsDemo(req.getEsDemo());
+        }
+        if (req.getFechaVencimientoDemo() != null) {
+            c.setFechaVencimientoDemo(req.getFechaVencimientoDemo());
+        }
         clienteRepo.save(c);
         return castToResponse(c);
     }
 
-    private boolean pagoMesActual(Long clienteId) {
-        LocalDate now = LocalDate.now();
-        LocalDate inicio = now.with(TemporalAdjusters.firstDayOfMonth());
-        LocalDate fin = now.with(TemporalAdjusters.lastDayOfMonth());
-
-        return pagoRepo.findFirstByClienteIdAndFechaPagoBetween(clienteId, inicio, fin).isPresent();
-    }
-
-
-
     public Page<ClienteResp> findPaged(
             int page,
             int size,
-            Boolean soloDeudores,
-            String nombre
+            Boolean deudores,
+            String nombre,
+            String sort,
+            String dir
     ) {
+        System.out.println("soloDeudores recibido: " + deudores);
+        System.out.println("Tipo: " + (deudores != null ? deudores.getClass().getName() : "null"));
+
+        Set<String> SORT_DB = Set.of("nombre", "direccion");
+
+        Sort sortObj = Sort.unsorted();
+
+        if (SORT_DB.contains(sort)) {
+            sortObj = Sort.by(
+                    "desc".equalsIgnoreCase(dir)
+                            ? Sort.Direction.DESC
+                            : Sort.Direction.ASC,
+                    sort
+            );
+        }
+
         Pageable pageable = PageRequest.of(
                 page,
                 size,
-                Sort.by("nombre").ascending()
+                sortObj
         );
 
-        Page<Cliente> clientes = clienteRepo.findAll(pageable);
+        Page<Cliente> clientes = (nombre == null || nombre.isBlank())
+                ? clienteRepo.findAll(pageable)
+                : clienteRepo.findByNombreContainingIgnoreCase(nombre, pageable);
 
         List<ClienteResp> filtrados = clientes.stream()
                 .map(this::castToResponse)
-                .filter(c -> soloDeudores == null || !soloDeudores || c.isTieneDeuda())
-                .filter(c -> nombre == null ||
-                        c.getNombre().toLowerCase().contains(nombre.toLowerCase()))
+                .filter(c -> {
+                    if (deudores == null) {
+                        return true; // Todos
+                    }
+                    if (deudores) {
+                        return c.getMesesAdeudados() > 0; // Solo deudores
+                    } else {
+                        return c.getMesesAdeudados() <= 0; // Solo al día
+                    }
+                })
                 .toList();
-
+        if ("mesesAdeudados".equals(sort)) {
+            Comparator<ClienteResp> comp = Comparator.comparingInt(ClienteResp::getMesesAdeudados);
+            if ("desc".equalsIgnoreCase(dir)) comp = comp.reversed();
+            filtrados = filtrados.stream().sorted(comp).toList();
+        }
         return new PageImpl<>(
                 filtrados,
                 pageable,
@@ -101,20 +137,6 @@ public class ClienteService {
        Cliente cliente = clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
         return castToResponse(cliente);
     }
-    public List<ClienteResp> buscarClientesDeudores(Boolean soloDeudores, String nombre) {
-
-        List<Cliente> clientes = (nombre == null || nombre.isBlank())
-                ? clienteRepo.findAll()
-                : clienteRepo.findByNombreContainingIgnoreCase(nombre);
-
-        return clientes.stream()
-                .map(this::castToResponse)
-                .filter(r ->
-                        !Boolean.TRUE.equals(soloDeudores) || r.getMesesAdeudados() > 0
-                )
-                .toList();
-    }
-
 
     private int calcularMesesAdeudados(YearMonth ultimoPeriodoPagado) {
         YearMonth actual = YearMonth.now();
@@ -127,6 +149,22 @@ public class ClienteService {
                 ultimoPeriodoPagado.plusMonths(1),
                 actual.plusMonths(1)
         );
+    }
+    public List<ClienteResp> buscarClientesExcel(Boolean soloDeudores, String nombre) {
+
+        List<Cliente> clientes = (nombre == null || nombre.isBlank())
+                ? clienteRepo.findAll(Sort.by("nombre").ascending())
+                : clienteRepo.findByNombreContainingIgnoreCase(
+                nombre, Sort.by("nombre").ascending());
+
+        return clientes.stream()
+                .map(this::castToResponse)
+                .filter(c ->
+                        soloDeudores == null ||
+                                !soloDeudores ||
+                                c.getMesesAdeudados() > 0
+                )
+                .toList();
     }
 
     private ClienteResp castToResponse(Cliente cliente) {
@@ -149,7 +187,15 @@ public class ClienteService {
                 || ultimoPago.getMedioPago() == MedioPago.TARJETA))
                 ? ultimoPago.getDniPagador()
                 : null;
-
+        
+        // Obtener meses pagados del cliente
+        int mesesPagados = cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0;
+        
+        // Obtener si tiene fibra TV
+        boolean tieneFibraTV = cliente.getTieneFibraTV() != null ? cliente.getTieneFibraTV() : false;
+        
+        // Obtener si es demo
+        boolean esDemo = cliente.getEsDemo() != null ? cliente.getEsDemo() : false;
 
         return new ClienteResp(
                 cliente.getId(),
@@ -158,6 +204,11 @@ public class ClienteService {
                 cliente.getDireccion(),
                 deuda,
                 mesesAdeudados,
+                mesesPagados,
+                tieneFibraTV,
+                cliente.getUsuarioFibraTV(),
+                esDemo,
+                cliente.getFechaVencimientoDemo(),
                 medioPago,
                 dni,
                 ultimoPago != null ? ultimoPago.getNota() : null,

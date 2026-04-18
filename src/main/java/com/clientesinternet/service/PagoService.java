@@ -34,18 +34,46 @@ public class PagoService {
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
 
         Optional<String> advertencia = validarDni(req);
+        
+        // Usar la cantidad de meses del request o 1 por defecto
+        Integer cantidadMeses = req.getCantidadMeses() != null && req.getCantidadMeses() > 0 ? 
+                req.getCantidadMeses() : 1;
+
+        // Obtener el último pago para calcular desde dónde suma
+        Pago ultimoPago = pagoRepo
+                .findTopByClienteIdOrderByPeriodoPagadoDesc(clienteId)
+                .orElse(null);
+
+        // Calcular el período hasta el que quedará pagado
+        YearMonth periodoPagadoHasta;
+        YearMonth ahora = YearMonth.now();
+        
+        if (ultimoPago != null && ultimoPago.getPeriodoPagado() != null && 
+            ultimoPago.getPeriodoPagado().isAfter(ahora)) {
+            // Si ya está pagado en meses futuros, suma desde donde quedó
+            periodoPagadoHasta = ultimoPago.getPeriodoPagado().plusMonths(cantidadMeses);
+        } else {
+            // Si no está pagado o el pago es antiguo, suma desde ahora
+            periodoPagadoHasta = ahora.plusMonths(cantidadMeses - 1);
+        }
 
         Pago pago = Pago.builder()
                 .cliente(cliente)
                 .monto(req.getMonto())
                 .medioPago(req.getMedioPago())
+                .cantidadMeses(cantidadMeses)
                 .dniPagador(req.getDniPagador())
                 .nota(req.getNota())
                 .fechaPago(LocalDate.now())
-                .periodoPagado(YearMonth.now())
+                .periodoPagado(periodoPagadoHasta)
                 .build();
 
         pagoRepo.save(pago);
+        
+        // Actualizar el total de meses pagados del cliente (acumulativo)
+        cliente.setMesesPagados((cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0) + cantidadMeses);
+        clienteRepo.save(cliente);
+        
         return new PagoResp(
                 pago.getId(),
                 advertencia.orElse(null)

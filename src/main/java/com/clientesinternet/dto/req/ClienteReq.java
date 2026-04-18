@@ -16,4 +16,9 @@ public class ClienteReq {
     private String telefono;
 
     private String direccion;
+    
+    private Boolean tieneFibraTV;
+    private String usuarioFibraTV;
+    private Boolean esDemo;
+    private java.time.LocalDate fechaVencimientoDemo;
 }
