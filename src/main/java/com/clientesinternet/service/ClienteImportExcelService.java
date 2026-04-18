@@ -14,15 +14,16 @@ import com.clientesinternet.repository.ClienteRepository;
 
 @Service
 public class ClienteImportExcelService {
-    @Autowired
+    
     private final ClienteRepository clienteRepo;
 
+    @Autowired
     public ClienteImportExcelService(ClienteRepository clienteRepo) {
         this.clienteRepo = clienteRepo;
     }
 
     @Transactional
-    public int importarClientes(MultipartFile file) {
+    public int importarClientes(MultipartFile file) throws Exception {
 
         int importados = 0;
 
@@ -40,8 +41,9 @@ public class ClienteImportExcelService {
 
                 Cliente cliente = Cliente.builder()
                         .nombre(nombre)
-                        .direccion(getCell(row, 1))
-                        .telefono(getCell(row, 2))
+                        .telefono(getCell(row, 1))
+                        .direccion(getCell(row, 2))
+                        .tieneFibraTV(false)
                         .build();
 
                 clienteRepo.save(cliente);
@@ -57,7 +59,9 @@ public class ClienteImportExcelService {
 
     private String getCell(Row row, int index) {
         Cell cell = row.getCell(index);
-        return cell == null ? null : cell.toString().trim();
+        if (cell == null) return null;
+        String value = cell.toString().trim();
+        return value.isEmpty() ? null : value;
     }
 }
 

@@ -52,8 +52,6 @@ document.addEventListener("DOMContentLoaded", () => {
     inputExcel.addEventListener("change", async () => {
         if (inputExcel.files.length === 0) return;
 
-        fileName.value = inputExcel.files[0].name;
-
         const formData = new FormData();
         formData.append("file", inputExcel.files[0]);
 

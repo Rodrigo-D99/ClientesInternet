@@ -19,8 +19,8 @@ public class ClienteImportExcelController {
     @PostMapping("importar")
     public ResponseEntity<String> importarExcel(@RequestParam("file") MultipartFile file) {
         try {
-            importService.importarClientes(file);
-            return ResponseEntity.ok("Importación exitosa");
+            int cantidad = importService.importarClientes(file);
+            return ResponseEntity.ok(String.valueOf(cantidad));
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error al importar Excel: " + e.getMessage());
         }
