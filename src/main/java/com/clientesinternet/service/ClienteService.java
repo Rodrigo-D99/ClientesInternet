@@ -5,10 +5,14 @@ import com.clientesinternet.dto.resp.ClienteResp;
 import com.clientesinternet.entity.Cliente;
 import com.clientesinternet.entity.MedioPago;
 import com.clientesinternet.entity.Pago;
+import com.clientesinternet.entity.PlanInternet;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.*;
 import com.clientesinternet.repository.ClienteRepository;
 import com.clientesinternet.repository.PagoRepository;
+import com.clientesinternet.repository.PlanInternetRepository;
+
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
@@ -24,55 +28,59 @@ public class ClienteService {
     private ClienteRepository clienteRepo;
     @Autowired
     private PagoRepository pagoRepo;
+    @Autowired
+    private PlanInternetRepository planRepo;
 
-    public ClienteService(ClienteRepository clienteRepo, PagoRepository pagoRepo) {
+    public ClienteService(ClienteRepository clienteRepo, PagoRepository pagoRepo, PlanInternetRepository planRepo) {
         this.clienteRepo = clienteRepo;
         this.pagoRepo = pagoRepo;
+        this.planRepo = planRepo;
     }
 
     @Transactional
     public ClienteResp save(ClienteReq req) {
+        // Buscamos el plan por ID (el valor que viene en req.getCantidadMB())
+        PlanInternet plan = null;
+        if (req.getCantidadMB() != null) {
+            plan = planRepo.findById(req.getCantidadMB().longValue()).orElse(null);
+        }
+
         Cliente cliente = Cliente.builder()
                 .nombre(req.getNombre())
                 .telefono(req.getTelefono())
                 .direccion(req.getDireccion())
+                .tieneTV(req.getTieneTV() != null ? req.getTieneTV() : false)
                 .tieneFibraTV(req.getTieneFibraTV() != null ? req.getTieneFibraTV() : false)
                 .usuarioFibraTV(req.getUsuarioFibraTV())
+                .dni(req.getDni())
+                .plan(plan) // Asignamos el objeto Plan completo
                 .esDemo(req.getEsDemo() != null ? req.getEsDemo() : false)
                 .fechaVencimientoDemo(req.getFechaVencimientoDemo())
                 .build();
 
-        cliente = clienteRepo.save(cliente);
-        return castToResponse(cliente);
+        return castToResponse(clienteRepo.save(cliente));
     }
-    @Transactional
+
     public ClienteResp update(Long id, ClienteReq req) {
-        Cliente c = clienteRepo.findById(id)
+        Cliente cliente = clienteRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
 
-        if (req.getNombre() != null) {
-            c.setNombre(req.getNombre());
+        cliente.setNombre(req.getNombre());
+        cliente.setTelefono(req.getTelefono());
+        cliente.setDireccion(req.getDireccion());
+        cliente.setTieneTV(req.getTieneTV());
+        cliente.setTieneFibraTV(req.getTieneFibraTV());
+        cliente.setUsuarioFibraTV(req.getUsuarioFibraTV());
+        cliente.setDni(req.getDni());
+        cliente.setEsDemo(req.getEsDemo());
+        cliente.setFechaVencimientoDemo(req.getFechaVencimientoDemo());
+
+        if (req.getCantidadMB() != null) {
+            PlanInternet plan = planRepo.findById(req.getCantidadMB().longValue()).orElse(null);
+            cliente.setPlan(plan);
         }
-        if (req.getTelefono() != null) {
-            c.setTelefono(req.getTelefono());
-        }
-        if (req.getDireccion() != null) {
-            c.setDireccion(req.getDireccion());
-        }
-        if (req.getTieneFibraTV() != null) {
-            c.setTieneFibraTV(req.getTieneFibraTV());
-        }
-        if (req.getUsuarioFibraTV() != null) {
-            c.setUsuarioFibraTV(req.getUsuarioFibraTV());
-        }
-        if (req.getEsDemo() != null) {
-            c.setEsDemo(req.getEsDemo());
-        }
-        if (req.getFechaVencimientoDemo() != null) {
-            c.setFechaVencimientoDemo(req.getFechaVencimientoDemo());
-        }
-        clienteRepo.save(c);
-        return castToResponse(c);
+
+        return castToResponse(clienteRepo.save(cliente));
     }
 
     public Page<ClienteResp> findPaged(
@@ -183,16 +191,19 @@ public class ClienteService {
 
         // Preparar medio de pago y DNI si existe pago
         String medioPago = ultimoPago != null ? ultimoPago.getMedioPago().name() : null;
-        String dni = (ultimoPago != null && (ultimoPago.getMedioPago() == MedioPago.TRANSFERENCIA
+        // Usar DNI del cliente si existe, sino del último pago si es transferencia/tarjeta
+        String dni = cliente.getDni() != null ? cliente.getDni() : 
+                ((ultimoPago != null && (ultimoPago.getMedioPago() == MedioPago.TRANSFERENCIA
                 || ultimoPago.getMedioPago() == MedioPago.TARJETA))
                 ? ultimoPago.getDniPagador()
-                : null;
+                : null);
         
         // Obtener meses pagados del cliente
         int mesesPagados = cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0;
         
         // Obtener si tiene fibra TV
         boolean tieneFibraTV = cliente.getTieneFibraTV() != null ? cliente.getTieneFibraTV() : false;
+        boolean tieneTV = cliente.getTieneTV() != null ? cliente.getTieneTV() : false;
         
         // Obtener si es demo
         boolean esDemo = cliente.getEsDemo() != null ? cliente.getEsDemo() : false;
@@ -207,13 +218,15 @@ public class ClienteService {
                 mesesPagados,
                 tieneFibraTV,
                 cliente.getUsuarioFibraTV(),
+                tieneTV,
                 esDemo,
                 cliente.getFechaVencimientoDemo(),
                 medioPago,
                 dni,
                 ultimoPago != null ? ultimoPago.getNota() : null,
                 ultimoPago != null ? ultimoPago.getFechaPago() : null,
-                ultimoPago != null ? ultimoPago.getMonto() : null
+                ultimoPago != null ? ultimoPago.getMonto() : null,
+                cliente.getPlan() != null ? Math.toIntExact(cliente.getPlan().getId()) : null
         );
     }
 

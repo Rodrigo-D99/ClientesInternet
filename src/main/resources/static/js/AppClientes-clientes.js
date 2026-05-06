@@ -8,6 +8,7 @@ let clienteEditandoId = null;
 function nuevoCliente() {
     clienteEditandoId = null;
     limpiarFormulario();
+    actualizarSelectPlanes(); // Carga los planes dinámicos
     document.getElementById("tituloForm").innerText = "Nuevo cliente";
     clienteModal.show();
 }
@@ -23,63 +24,42 @@ async function guardarCliente(e) {
     e.preventDefault();
 
     const cliente = {
-        nombre: nombre.value,
-        telefono: telefono.value,
-        direccion: direccion.value,
+        nombre: document.getElementById("nombre").value,
+        telefono: document.getElementById("telefono").value,
+        direccion: document.getElementById("direccion").value,
+        tieneTV: document.getElementById("tieneTV").checked,
         tieneFibraTV: document.getElementById("tieneFibraTV").checked,
-        usuarioFibraTV: document.getElementById("usuarioFibraTV").value || null
+        usuarioFibraTV: document.getElementById("usuarioFibraTV").value || null,
+        dni: document.getElementById("dni").value || null,
+        cantidadMB: document.getElementById("cantidadMB").value !== '' ? Number(document.getElementById("cantidadMB").value) : null
     };
-
+    
     const method = clienteEditandoId ? "PUT" : "POST";
     const endpoint = clienteEditandoId
         ? `/clientes/${clienteEditandoId}`
         : "/clientes";
 
-    const respCliente = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cliente)
-    });
+    try {
+        const resp = await fetch(endpoint, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(cliente)
+        });
 
-    if (!respCliente.ok) {
-        alert("Error al guardar cliente");
-        return;
-    }
+        if (!resp.ok) {
+            throw new Error("Error al guardar el cliente");
+        }
 
-    const clienteCreado = await respCliente.json();
-
-    const monto = document.getElementById("monto").value;
-    if (monto && Number(monto) > 0) {
-        await crearPagoInicial(clienteCreado.id);
-    }
-
-    clienteModal.hide();
-    limpiarFormulario();
-    fetchClientes(currentPage);
-}
-
-// Crear pago inicial para cliente nuevo
-async function crearPagoInicial(clienteId) {
-    const pago = {
-        monto: Number(document.getElementById("monto").value),
-        medioPago: document.getElementById("medioPago").value,
-        cantidadMeses: Number(document.getElementById("cantidadMeses").value) || 1,
-        dniPagador: document.getElementById("dni").value || null,
-        nota: document.getElementById("nota").value || null
-    };
-
-    const respPago = await fetch(`/pagos/${clienteId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pago)
-    });
-
-    if (!respPago.ok) {
-        alert("Cliente creado, pero error registrando pago");
+        clienteModal.hide();
+        fetchClientes(currentPage);
+    } catch (error) {
+        alert(error.message);
     }
 }
 
-// Cargar cliente para editar
+// Editar cliente (cargar datos al modal)
 async function editarCliente(id) {
     clienteEditandoId = id;
 
@@ -91,16 +71,33 @@ async function editarCliente(id) {
     document.getElementById("nombre").value = c.nombre ?? "";
     document.getElementById("telefono").value = c.telefono ?? "";
     document.getElementById("direccion").value = c.direccion ?? "";
+    document.getElementById("tieneTV").checked = c.tieneTV ?? false;
     document.getElementById("tieneFibraTV").checked = c.tieneFibraTV ?? false;
     document.getElementById("usuarioFibraTV").value = c.usuarioFibraTV ?? "";
 
+    // Cargar los planes ANTES de asignar el valor
+    await actualizarSelectPlanes();
+    
+    // Poblar campos relacionados a último pago (medio de pago y DNI)
+    const medioEl = document.getElementById("medioPago");
+    if (medioEl) medioEl.value = c.medioPago ?? "";
+    const dniEl = document.getElementById("dni");
+    if (dniEl) dniEl.value = c.dni ?? "";
+    const montoEl = document.getElementById("monto");
+    if (montoEl) montoEl.value = c.montoUltimoPago ?? "";
+    const notaEl = document.getElementById("nota");
+    if (notaEl) notaEl.value = c.nota ?? "";
+    const cantidadMBEl = document.getElementById("cantidadMB");
+    if (cantidadMBEl) cantidadMBEl.value = c.cantidadMB ?? "";
+
+    // Validar si mostrar advertencia de DNI según medio de pago
+    if (typeof validarDniRecomendado === 'function') validarDniRecomendado();
     clienteModal.show();
 }
 
 // Eliminar cliente
 async function eliminarCliente(id) {
-    const confirmar = confirm("¿Seguro que querés eliminar este cliente?");
-    if (!confirmar) return;
+    if (!confirm("¿Seguro que deseas eliminar este cliente?")) return;
 
     const resp = await fetch(`/clientes/${id}`, {
         method: "DELETE"
@@ -122,7 +119,7 @@ function cancelarEdicion() {
 
 // Limpiar formulario
 function limpiarFormulario() {
-    ["nombre", "telefono", "direccion", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV"].forEach(id => {
+    ["nombre", "telefono", "direccion", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV", "cantidadMB"].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             if (id === "cantidadMeses") {
@@ -132,7 +129,8 @@ function limpiarFormulario() {
             }
         }
     });
-    // Limpiar checkbox
+    // Limpiar checkboxes
+    document.getElementById("tieneTV").checked = false;
     document.getElementById("tieneFibraTV").checked = false;
 }
 
@@ -142,14 +140,55 @@ function validarDniRecomendado() {
     const dni = document.getElementById("dni").value;
     const warning = document.getElementById("dniWarning");
 
+    if (!warning) return; // Por si no existe en el HTML
+
     if (
-        (medioPago === "TRANSFERENCIA" || medioPago === "TARJETA") &&
+        (medioPago === "TRANSFERENCIA" || medioPago === "TARJETA") && 
         (!dni || dni.trim() === "")
     ) {
-        warning.classList.remove("d-none");
-        return false;
+        warning.style.display = "block";
     } else {
-        warning.classList.add("d-none");
-        return true;
+        warning.style.display = "none";
+    }
+}
+
+// ============================================================
+// FUNCIONES DE PLANES (SELECT DINÁMICO)
+// ============================================================
+
+async function actualizarSelectPlanes() {
+    try {
+        console.log("Buscando planes en el servidor...");
+        const resp = await fetch('/api/planes');
+        
+        if (!resp.ok) throw new Error("No se pudieron cargar los planes");
+        
+        const planes = await resp.json();
+        const selectMB = document.getElementById("cantidadMB");
+        
+        if (!selectMB) return;
+
+        // Guardamos el valor seleccionado actualmente
+        const valorActual = selectMB.value;
+
+        // Limpiar opciones
+        selectMB.innerHTML = '<option value="">Seleccione un plan...</option>';
+
+        // Ordenar de menor a mayor MB
+        planes.sort((a, b) => a.cantidadMB - b.cantidadMB);
+
+        planes.forEach(plan => {
+            const option = document.createElement("option");
+            option.value = plan.cantidadMB;
+            option.textContent = `${plan.cantidadMB} MB`;
+            selectMB.appendChild(option);
+        });
+
+        // Restaurar valor si existía
+        if (valorActual) selectMB.value = valorActual;
+        console.log("Planes cargados con éxito.");
+
+    } catch (error) {
+        console.error("Error al actualizar el select de planes:", error);
     }
 }

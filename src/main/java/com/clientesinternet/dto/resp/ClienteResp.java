@@ -17,6 +17,7 @@ public class ClienteResp {
     private int mesesPagados;
     private boolean tieneFibraTV;
     private String usuarioFibraTV;
+    private Boolean tieneTV;
     private boolean esDemo;
     private LocalDate fechaVencimientoDemo;
     private String medioPago; // EFECTIVO, TRANSFERENCIA, TARJETA
@@ -24,4 +25,5 @@ public class ClienteResp {
     private String nota;      // monto pagado o comentario
     private LocalDate fechaUltimoPago;
     private BigDecimal montoUltimoPago;
+    private Integer cantidadMB;
 }

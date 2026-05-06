@@ -63,7 +63,24 @@ function renderTable(clientes) {
                 </div>
             </td>`;
         }
+        let TVCell = '';
 
+        if (c.tieneTV) {
+            // Subscripción activa
+            TVCell = `<td>
+                <div class="fibra-tv-container">
+                    <div class="fibra-tv-row">
+                        <span class="badge bg-success">Sí</span>
+                    </div>
+                </div>
+            </td>`;
+        } else {
+            // Sin Fibra TV
+            TVCell = `<td>
+                <div class="fibra-tv-container">
+                    <span class="badge bg-danger">No</span>
+                </div>
+            </td>`;}
         // Crear fila
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -78,17 +95,19 @@ function renderTable(clientes) {
             <td>${c.mesesAdeudados}</td>
             <td>${c.mesesPagados || 0}</td>
             ${fibraTVCell}
+            ${TVCell}
             <td>${c.medioPago || ''}</td>
             <td>${dni}</td>
             <td>
-                ${c.montoUltimoPago || ""} - ${c.nota || ""}
+            ${c.montoUltimoPago || ""} - ${c.nota || ""}
             </td>
             <td>${c.fechaUltimoPago || ''}</td>
+            <td>${c.cantidadMB || ''}</td>
             <td>
-                <div class="actions-container">
+            <div class="actions-container">
                     <button class="btn btn-sm btn-warning"
                             onclick="editarCliente(${c.id})">
-                        Editar
+                            Editar
                     </button>
                     <button class="btn btn-sm btn-danger"
                             onclick="eliminarCliente(${c.id})">

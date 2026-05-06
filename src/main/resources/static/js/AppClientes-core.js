@@ -70,8 +70,18 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error(err);
             alert("Error al importar Excel");
         }
-    });
-
+    });  
+    // ============================================================
+    // CREAR RECIBO
+    // ============================================================
+    const btnGenerarRecibos = document.getElementById('btnGenerarRecibos');
+    
+    if(btnGenerarRecibos) {
+        btnGenerarRecibos.addEventListener('click', () => {
+            // Esto le indicará al navegador que abra una pestaña nueva apuntando al endpoint de Spring Boot
+            window.open('/api/recibos/pdf-masivo', '_blank');
+        });
+    }
     // ============================================================
     // FILTROS
     // ============================================================

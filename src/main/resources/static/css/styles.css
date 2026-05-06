@@ -6,6 +6,11 @@ body {
 .table-container {
     max-height: 600px;
     overflow-y: auto;
+    overflow-x: auto;
+}
+
+.table-container table {
+    min-width: 1200px; 
 }
 
 #fileName {

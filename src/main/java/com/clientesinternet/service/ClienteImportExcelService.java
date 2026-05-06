@@ -1,6 +1,9 @@
 package com.clientesinternet.service;
 
 import com.clientesinternet.entity.Cliente;
+import com.clientesinternet.entity.PlanInternet;
+import com.clientesinternet.repository.ClienteRepository;
+import com.clientesinternet.repository.PlanInternetRepository;
 import jakarta.transaction.Transactional;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -10,16 +13,19 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import com.clientesinternet.repository.ClienteRepository;
+
+import java.util.Optional;
 
 @Service
 public class ClienteImportExcelService {
     
     private final ClienteRepository clienteRepo;
+    private final PlanInternetRepository planRepo;
 
     @Autowired
-    public ClienteImportExcelService(ClienteRepository clienteRepo) {
+    public ClienteImportExcelService(ClienteRepository clienteRepo, PlanInternetRepository planRepo) {
         this.clienteRepo = clienteRepo;
+        this.planRepo = planRepo;
     }
 
     @Transactional
@@ -39,10 +45,28 @@ public class ClienteImportExcelService {
                 String nombre = getCell(row, 0);
                 if (nombre == null || nombre.isBlank()) continue;
 
+                // Extraemos la cantidad de MB (Columna D - Índice 3)
+                String mbString = getCell(row, 3);
+                PlanInternet planAsignado = null;
+                
+                if (mbString != null) {
+                    try {
+                        int cantidadMB = (int) Double.parseDouble(mbString);
+                        // Buscamos el plan en la base de datos según los MB del Excel
+                        Optional<PlanInternet> planOpt = planRepo.findByCantidadMB(cantidadMB);
+                        if (planOpt.isPresent()) {
+                            planAsignado = planOpt.get();
+                        }
+                    } catch (NumberFormatException e) {
+                        // Si no es un número, queda en null
+                    }
+                }
+
                 Cliente cliente = Cliente.builder()
                         .nombre(nombre)
                         .telefono(getCell(row, 1))
                         .direccion(getCell(row, 2))
+                        .plan(planAsignado) // <-- Acá está el cambio
                         .tieneFibraTV(false)
                         .build();
 
@@ -64,4 +88,3 @@ public class ClienteImportExcelService {
         return value.isEmpty() ? null : value;
     }
 }
-

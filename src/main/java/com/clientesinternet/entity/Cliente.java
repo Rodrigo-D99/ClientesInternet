@@ -2,7 +2,6 @@ package com.clientesinternet.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDate;
 import java.util.List;
 
@@ -22,7 +21,6 @@ public class Cliente {
     private String nombre;
 
     private String telefono;
-
     private String direccion;
     private String sort;
     
@@ -31,6 +29,9 @@ public class Cliente {
     
     @Builder.Default
     private Boolean tieneFibraTV = false;
+
+    @Builder.Default
+    private Boolean tieneTV = false;
     
     private String usuarioFibraTV;
     
@@ -38,6 +39,12 @@ public class Cliente {
     private Boolean esDemo = false;
     
     private LocalDate fechaVencimientoDemo;
+    
+    @ManyToOne
+    @JoinColumn(name = "plan_id")
+    private PlanInternet plan;
+    
+    private String dni;
     
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Pago> pagos;
