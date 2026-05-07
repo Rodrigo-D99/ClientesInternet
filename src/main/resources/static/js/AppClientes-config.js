@@ -16,25 +16,29 @@ async function abrirModalConfig() {
 }
 
 // 2. Función para crear el HTML de una fila de plan dinámico
-function crearFilaPlanHTML(plan = { id: '', cantidadMB: '', precioEfectivo: '', precioTransferencia: '' }) {
+function crearFilaPlanHTML(plan) {
+    // BLINDAJE: Si el plan viene nulo o roto, creamos uno vacío por defecto
+    if (!plan) {
+        plan = { id: '', cantidadMB: '', precioEfectivo: '', precioTransferencia: '' };
+    }
+
     const div = document.createElement('div');
     div.className = 'card mb-2 p-2 bg-light fila-plan';
     
-    // NOTA: Agregamos el input type="hidden" para guardar el ID de cada plan
     div.innerHTML = `
         <input type="hidden" class="plan-id" value="${plan.id || ''}">
         <div class="row g-2 align-items-center">
             <div class="col-3">
                 <div class="input-group input-group-sm">
-                    <input type="number" class="form-control plan-mb" placeholder="MB" value="${plan.cantidadMB}">
+                    <input type="number" class="form-control plan-mb" placeholder="MB" value="${plan.cantidadMB || ''}">
                     <span class="input-group-text">MB</span>
                 </div>
             </div>
             <div class="col-4">
-                <input type="number" class="form-control form-control-sm plan-efectivo" placeholder="Efectivo $" value="${plan.precioEfectivo}">
+                <input type="number" class="form-control form-control-sm plan-efectivo" placeholder="Efectivo $" value="${plan.precioEfectivo || ''}">
             </div>
             <div class="col-4">
-                <input type="number" class="form-control form-control-sm plan-transf" placeholder="Transf. $" value="${plan.precioTransferencia}">
+                <input type="number" class="form-control form-control-sm plan-transf" placeholder="Transf. $" value="${plan.precioTransferencia || ''}">
             </div>
             <div class="col-1 text-end">
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.fila-plan').remove()" title="Borrar Plan">×</button>
@@ -48,9 +52,16 @@ function crearFilaPlanHTML(plan = { id: '', cantidadMB: '', precioEfectivo: '', 
 async function cargarPlanesEnConfig() {
     try {
         const resp = await fetch('/api/planes');
-        const planes = await resp.json();
+        let planes = await resp.json();
         const container = document.getElementById('listaPlanesConfig');
         container.innerHTML = '';
+
+        // BLINDAJE: Filtramos cualquier elemento null o undefined que venga de la BD
+        if (Array.isArray(planes)) {
+            planes = planes.filter(p => p !== null && p !== undefined);
+        } else {
+            planes = [];
+        }
 
         if (planes.length > 0) {
             planes.forEach(plan => {
@@ -67,7 +78,7 @@ async function cargarPlanesEnConfig() {
 // 4. Agregar una fila vacía (Botón "+ Agregar Plan")
 function agregarFilaPlan() {
     const container = document.getElementById('listaPlanesConfig');
-    container.appendChild(crearFilaPlanHTML());
+    container.appendChild(crearFilaPlanHTML(null));
 }
 
 // 5. Cargar el precio de Fibra TV
@@ -89,7 +100,7 @@ async function guardarConfiguracionGeneral() {
     // Recolectar datos de todas las filas de planes
     filas.forEach(fila => {
         const idInput = fila.querySelector('.plan-id');
-        const id = idInput ? idInput.value : ''; // Obtenemos el ID oculto
+        const id = idInput ? idInput.value : ''; 
         const mb = parseInt(fila.querySelector('.plan-mb').value);
         const ef = parseFloat(fila.querySelector('.plan-efectivo').value);
         const tr = parseFloat(fila.querySelector('.plan-transf').value);
@@ -101,8 +112,8 @@ async function guardarConfiguracionGeneral() {
                 precioTransferencia: isNaN(tr) ? 0 : tr 
             };
             
-            // Si tiene ID, se lo agregamos al objeto para que el Backend sepa que es una actualización
-            if (id) {
+            // BLINDAJE: Solo enviamos el ID si es un número real, si no, va sin ID para que el backend lo cree
+            if (id && id !== "null" && id !== "undefined" && id.trim() !== "") {
                 planObj.id = parseInt(id);
             }
             
@@ -112,11 +123,13 @@ async function guardarConfiguracionGeneral() {
 
     try {
         // A. Guardar Planes (sincronización dinámica)
-        await fetch('/api/planes/sincronizar', {
+        const respPlanes = await fetch('/api/planes/sincronizar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(planesNuevos)
         });
+
+        if (!respPlanes.ok) throw new Error("Error 500 guardando los planes en el servidor.");
 
         // B. Guardar Fibra TV
         const precioTV = document.getElementById('inputPrecioFibraTV').value;
@@ -125,13 +138,13 @@ async function guardarConfiguracionGeneral() {
         alert("¡Configuración guardada! Los próximos recibos usarán estos precios.");
         configModal.hide();
         
-        // Actualizar el select de planes en el modal de clientes (si la función existe)
+        // Actualizar el select de planes en el modal de clientes
         if (typeof actualizarSelectPlanes === 'function') {
             await actualizarSelectPlanes();
         }
         
     } catch (e) {
         console.error("Error al guardar:", e);
-        alert("Ocurrió un error al guardar la configuración.");
+        alert("Ocurrió un error al guardar la configuración. Revisa la consola.");
     }
 }

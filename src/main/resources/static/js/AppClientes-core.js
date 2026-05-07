@@ -147,7 +147,7 @@ async function fetchClientes(page = 0) {
 
     currentPage = data.number;
     totalPages = data.totalPages;
-
+console.log("CLIENTES RECIBIDOS:", data.content ? data.content : data);
     renderTable(data.content);
     renderPagination();
 }

@@ -177,37 +177,34 @@ public class ClienteService {
 
     private ClienteResp castToResponse(Cliente cliente) {
 
-        // Obtener el último pago del cliente
+        // 1. Obtener el último pago
         Pago ultimoPago = pagoRepo
                 .findTopByClienteIdOrderByPeriodoPagadoDesc(cliente.getId())
                 .orElse(null);
 
-        // Calcular meses adeudados
+        // 2. Calcular deuda (si no hay pago, se calcula desde 'null')
         int mesesAdeudados = (ultimoPago != null)
                 ? calcularMesesAdeudados(ultimoPago.getPeriodoPagado())
                 : calcularMesesAdeudados(null);
 
         boolean deuda = mesesAdeudados > 0;
 
-        // Preparar medio de pago y DNI si existe pago
-        String medioPago = ultimoPago != null ? ultimoPago.getMedioPago().name() : null;
-        // Usar DNI del cliente si existe, sino del último pago si es transferencia/tarjeta
-        String dni = cliente.getDni() != null ? cliente.getDni() : 
-                ((ultimoPago != null && (ultimoPago.getMedioPago() == MedioPago.TRANSFERENCIA
-                || ultimoPago.getMedioPago() == MedioPago.TARJETA))
-                ? ultimoPago.getDniPagador()
-                : null);
-        
-        // Obtener meses pagados del cliente
-        int mesesPagados = cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0;
-        
-        // Obtener si tiene fibra TV
-        boolean tieneFibraTV = cliente.getTieneFibraTV() != null ? cliente.getTieneFibraTV() : false;
-        boolean tieneTV = cliente.getTieneTV() != null ? cliente.getTieneTV() : false;
-        
-        // Obtener si es demo
-        boolean esDemo = cliente.getEsDemo() != null ? cliente.getEsDemo() : false;
+        // 3. Lógica inteligente de DNI
+        // Prioridad: 1. El DNI de la ficha del cliente | 2. El DNI del último pago (si fue Transf/Tarjeta)
+        String dni = (cliente.getDni() != null && !cliente.getDni().isBlank()) 
+                ? cliente.getDni() 
+                : ((ultimoPago != null && (ultimoPago.getMedioPago() == MedioPago.TRANSFERENCIA 
+                    || ultimoPago.getMedioPago() == MedioPago.TARJETA)) 
+                    ? ultimoPago.getDniPagador() : null);
 
+        // 4. Mapeo de valores básicos
+        String medioPago = (ultimoPago != null) ? ultimoPago.getMedioPago().name() : null;
+        int mesesPagados = (cliente.getMesesPagados() != null) ? cliente.getMesesPagados() : 0;
+        boolean tieneFibraTV = (cliente.getTieneFibraTV() != null) ? cliente.getTieneFibraTV() : false;
+        boolean tieneTV = (cliente.getTieneTV() != null) ? cliente.getTieneTV() : false;
+        boolean esDemo = (cliente.getEsDemo() != null) ? cliente.getEsDemo() : false;
+
+        // 5. Construcción del objeto (Manten el orden del constructor de ClienteResp)
         return new ClienteResp(
                 cliente.getId(),
                 cliente.getNombre(),
@@ -223,13 +220,12 @@ public class ClienteService {
                 cliente.getFechaVencimientoDemo(),
                 medioPago,
                 dni,
-                ultimoPago != null ? ultimoPago.getNota() : null,
-                ultimoPago != null ? ultimoPago.getFechaPago() : null,
-                ultimoPago != null ? ultimoPago.getMonto() : null,
-                cliente.getPlan() != null ? Math.toIntExact(cliente.getPlan().getId()) : null
+                (ultimoPago != null) ? ultimoPago.getNota() : null,
+                (ultimoPago != null) ? ultimoPago.getFechaPago() : null,
+                (ultimoPago != null) ? ultimoPago.getMonto() : null,
+                (cliente.getPlan() != null) ? cliente.getPlan().getCantidadMB() : null
         );
     }
-
 
     public void delete(Long id) {
         clienteRepo.delete(clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado")));

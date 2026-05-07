@@ -2,6 +2,8 @@ package com.clientesinternet.controller;
 
 import com.clientesinternet.dto.req.NotaReq;
 import com.clientesinternet.dto.req.PagoReq;
+import com.clientesinternet.dto.resp.PagoResp;
+
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,9 +22,9 @@ public class PagoController {
     }
 
     @PostMapping("/{clienteId}")
-    public void pagar(@PathVariable Long clienteId,
-                      @Valid @RequestBody PagoReq req) {
-        ResponseEntity.ok(service.registrarPago(clienteId, req));
+    public ResponseEntity<PagoResp> pagar(@PathVariable Long clienteId,
+                                        @Valid @RequestBody PagoReq req) {
+        return ResponseEntity.ok(service.registrarPago(clienteId, req));
     }
     @PatchMapping("/{id}/nota")
     @ResponseStatus(HttpStatus.NO_CONTENT)

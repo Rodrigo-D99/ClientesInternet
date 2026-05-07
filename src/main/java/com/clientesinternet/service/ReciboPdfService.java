@@ -3,7 +3,6 @@ package com.clientesinternet.service;
 import com.clientesinternet.entity.Cliente;
 import com.clientesinternet.entity.Configuracion;
 import com.clientesinternet.repository.ClienteRepository;
-import com.clientesinternet.repository.PlanInternetRepository;
 import com.clientesinternet.repository.ConfiguracionRepository;
 import com.clientesinternet.util.NumeroALetras;
 import com.lowagie.text.*;

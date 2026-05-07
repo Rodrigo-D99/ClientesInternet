@@ -35,27 +35,50 @@ async function guardarCliente(e) {
     };
     
     const method = clienteEditandoId ? "PUT" : "POST";
-    const endpoint = clienteEditandoId
-        ? `/clientes/${clienteEditandoId}`
-        : "/clientes";
+    const endpoint = clienteEditandoId ? `/clientes/${clienteEditandoId}` : "/clientes";
 
     try {
+        console.log("PASO 1: Guardando cliente en backend...", cliente);
         const resp = await fetch(endpoint, {
             method: method,
-            headers: {
-                "Content-Type": "application/json"
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(cliente)
         });
 
-        if (!resp.ok) {
-            throw new Error("Error al guardar el cliente");
+        if (!resp.ok) throw new Error("Error al guardar el cliente en el servidor.");
+
+        const textResp = await resp.text();
+        let clienteGuardado = {};
+        if (textResp) {
+            clienteGuardado = JSON.parse(textResp);
+        }
+
+        const idParaPago = clienteEditandoId || clienteGuardado.id;
+        console.log("PASO 2: Cliente guardado ok. ID a usar para el pago:", idParaPago);
+
+        if (!idParaPago) {
+            throw new Error("No se pudo obtener el ID del cliente para registrar el pago.");
+        }
+
+        // PASO 3: Procesar el pago si hay monto
+        const montoStr = document.getElementById("monto").value;
+        const monto = parseFloat(montoStr);
+        console.log("PASO 3: Monto leído del formulario:", monto);
+
+        if (!isNaN(monto) && monto > 0) {
+            console.log("PASO 4: Iniciando el registro del pago...");
+            await ejecutarPagoDirecto(idParaPago);
+        } else {
+            console.log("PASO 4: El monto está vacío o es 0, se omite el pago.");
         }
 
         clienteModal.hide();
         fetchClientes(currentPage);
+        alert("¡Operación completada exitosamente!");
+
     } catch (error) {
-        alert(error.message);
+        console.error("❌ ERROR DETECTADO EN JS:", error);
+        alert("Ocurrió un error: " + error.message);
     }
 }
 
@@ -77,6 +100,8 @@ async function editarCliente(id) {
 
     // Cargar los planes ANTES de asignar el valor
     await actualizarSelectPlanes();
+    const cantidadMBEl = document.getElementById("cantidadMB");
+    if (cantidadMBEl) cantidadMBEl.value = c.cantidadMB ?? "";
     
     // Poblar campos relacionados a último pago (medio de pago y DNI)
     const medioEl = document.getElementById("medioPago");
@@ -87,14 +112,40 @@ async function editarCliente(id) {
     if (montoEl) montoEl.value = c.montoUltimoPago ?? "";
     const notaEl = document.getElementById("nota");
     if (notaEl) notaEl.value = c.nota ?? "";
-    const cantidadMBEl = document.getElementById("cantidadMB");
-    if (cantidadMBEl) cantidadMBEl.value = c.cantidadMB ?? "";
 
     // Validar si mostrar advertencia de DNI según medio de pago
     if (typeof validarDniRecomendado === 'function') validarDniRecomendado();
     clienteModal.show();
 }
 
+async function ejecutarPagoDirecto(clienteId) {
+    const pagoReq = {
+        monto: parseFloat(document.getElementById("monto").value),
+        medioPago: document.getElementById("medioPago").value,
+        cantidadMeses: parseInt(document.getElementById("cantidadMeses").value) || 1,
+        nota: document.getElementById("nota").value || null,
+        dniPagador: document.getElementById("dni").value || null
+    };
+
+    console.log("PASO 5: Datos del pago que se van a enviar:", pagoReq);
+
+    if (!pagoReq.medioPago) {
+        throw new Error("Debe seleccionar un Medio de Pago (Efectivo, Transferencia, etc.) para registrar el monto.");
+    }
+
+    const resp = await fetch(`/pagos/${clienteId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pagoReq)
+    });
+
+    if (!resp.ok) {
+        const errorDelBackend = await resp.text(); 
+        throw new Error(`El pago rebotó en el servidor (Error ${resp.status}). Detalle: ${errorDelBackend}`);
+    }
+    
+    console.log("PASO 6: ¡Pago registrado con éxito en la base de datos!");
+}
 // Eliminar cliente
 async function eliminarCliente(id) {
     if (!confirm("¿Seguro que deseas eliminar este cliente?")) return;
@@ -152,6 +203,7 @@ function validarDniRecomendado() {
     }
 }
 
+
 // ============================================================
 // FUNCIONES DE PLANES (SELECT DINÁMICO)
 // ============================================================
@@ -163,23 +215,27 @@ async function actualizarSelectPlanes() {
         
         if (!resp.ok) throw new Error("No se pudieron cargar los planes");
         
-        const planes = await resp.json();
-        const selectMB = document.getElementById("cantidadMB");
+        let planes = await resp.json();
         
+        // 1. FILTRAR ELEMENTOS NULOS (Esto evita el error del sort)
+        planes = planes.filter(p => p !== null && p !== undefined);
+
+        const selectMB = document.getElementById("cantidadMB");
         if (!selectMB) return;
 
-        // Guardamos el valor seleccionado actualmente
+        // Guardamos el valor seleccionado actualmente para no perderlo
         const valorActual = selectMB.value;
 
         // Limpiar opciones
         selectMB.innerHTML = '<option value="">Seleccione un plan...</option>';
 
-        // Ordenar de menor a mayor MB
-        planes.sort((a, b) => a.cantidadMB - b.cantidadMB);
+        // 2. ORDENAR (con seguridad por si falta cantidadMB)
+        planes.sort((a, b) => (a.cantidadMB || 0) - (b.cantidadMB || 0));
 
         planes.forEach(plan => {
             const option = document.createElement("option");
-            option.value = plan.cantidadMB;
+            // CAMBIO CLAVE: El value ahora es el ID del plan
+            option.value = plan.id; 
             option.textContent = `${plan.cantidadMB} MB`;
             selectMB.appendChild(option);
         });

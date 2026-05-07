@@ -1,11 +1,13 @@
 package com.clientesinternet.dto.resp;
 
-import lombok.*;
-
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Getter
+@Data
+@NoArgsConstructor
 @AllArgsConstructor
 public class ClienteResp {
     private Long id;
@@ -20,9 +22,9 @@ public class ClienteResp {
     private Boolean tieneTV;
     private boolean esDemo;
     private LocalDate fechaVencimientoDemo;
-    private String medioPago; // EFECTIVO, TRANSFERENCIA, TARJETA
-    private String dni;       // solo si medioPago es transferencia/tarjeta
-    private String nota;      // monto pagado o comentario
+    private String medioPago; 
+    private String dni;       
+    private String nota;      
     private LocalDate fechaUltimoPago;
     private BigDecimal montoUltimoPago;
     private Integer cantidadMB;
