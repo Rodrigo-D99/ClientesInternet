@@ -70,5 +70,9 @@ public class ClienteController {
          service.delete(id);
         return ResponseEntity.noContent().build();
     }
-
+    @DeleteMapping("/all")
+    public ResponseEntity<?> borrarTodo() {
+        service.deleteAll();
+        return ResponseEntity.noContent().build();
+    }
 }

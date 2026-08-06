@@ -19,10 +19,10 @@ function getPageSize() {
     return sizePageSelect ? sizePageSelect.value : 50; // Valor por defecto 50
 }
 
+
 // Guardar cliente (crear o editar)
 async function guardarCliente(e) {
     e.preventDefault();
-
     const cliente = {
         nombre: document.getElementById("nombre").value,
         telefono: document.getElementById("telefono").value,
@@ -30,15 +30,17 @@ async function guardarCliente(e) {
         tieneTV: document.getElementById("tieneTV").checked,
         tieneFibraTV: document.getElementById("tieneFibraTV").checked,
         usuarioFibraTV: document.getElementById("usuarioFibraTV").value || null,
+        cantidadMB: document.getElementById("cantidadMB").value !== '' ? Number(document.getElementById("cantidadMB").value) : null,
         dni: document.getElementById("dni").value || null,
-        cantidadMB: document.getElementById("cantidadMB").value !== '' ? Number(document.getElementById("cantidadMB").value) : null
+        deudaInstalacion: document.getElementById("deudaInstalacion").value,
+        costoInstalacion: document.getElementById("costoInstalacion").value ? parseFloat(document.getElementById("costoInstalacion").value) : 0,
     };
     
     const method = clienteEditandoId ? "PUT" : "POST";
     const endpoint = clienteEditandoId ? `/clientes/${clienteEditandoId}` : "/clientes";
 
     try {
-        console.log("PASO 1: Guardando cliente en backend...", cliente);
+        //console.log("PASO 1: Guardando cliente en backend...", cliente);
         const resp = await fetch(endpoint, {
             method: method,
             headers: { "Content-Type": "application/json" },
@@ -54,7 +56,7 @@ async function guardarCliente(e) {
         }
 
         const idParaPago = clienteEditandoId || clienteGuardado.id;
-        console.log("PASO 2: Cliente guardado ok. ID a usar para el pago:", idParaPago);
+        //console.log("PASO 2: Cliente guardado ok. ID a usar para el pago:", idParaPago);
 
         if (!idParaPago) {
             throw new Error("No se pudo obtener el ID del cliente para registrar el pago.");
@@ -63,21 +65,21 @@ async function guardarCliente(e) {
         // PASO 3: Procesar el pago si hay monto
         const montoStr = document.getElementById("monto").value;
         const monto = parseFloat(montoStr);
-        console.log("PASO 3: Monto leído del formulario:", monto);
-
+        //console.log("PASO 3: Monto leído del formulario:", monto);
+    
         if (!isNaN(monto) && monto > 0) {
             console.log("PASO 4: Iniciando el registro del pago...");
             await ejecutarPagoDirecto(idParaPago);
-        } else {
+        } /*else {
             console.log("PASO 4: El monto está vacío o es 0, se omite el pago.");
-        }
+        }*/
 
         clienteModal.hide();
         fetchClientes(currentPage);
-        alert("¡Operación completada exitosamente!");
+        //alert("¡Operación completada exitosamente!");
 
     } catch (error) {
-        console.error("❌ ERROR DETECTADO EN JS:", error);
+        //console.error("❌ ERROR DETECTADO EN JS:", error);
         alert("Ocurrió un error: " + error.message);
     }
 }
@@ -98,7 +100,12 @@ async function editarCliente(id) {
     document.getElementById("tieneFibraTV").checked = c.tieneFibraTV ?? false;
     document.getElementById("usuarioFibraTV").value = c.usuarioFibraTV ?? "";
 
-    // Cargar los planes ANTES de asignar el valor
+    const selectDeuda = document.getElementById("deudaInstalacion");
+    const inputCosto = document.getElementById("costoInstalacion");
+    selectDeuda.value = c.deudaInstalacion || "NO";
+    inputCosto.value = c.costoInstalacion || "";
+    inputCosto.disabled = (selectDeuda.value === 'NO');
+
     await actualizarSelectPlanes();
     const cantidadMBEl = document.getElementById("cantidadMB");
     if (cantidadMBEl) cantidadMBEl.value = c.cantidadMB ?? "";
@@ -127,7 +134,7 @@ async function ejecutarPagoDirecto(clienteId) {
         dniPagador: document.getElementById("dni").value || null
     };
 
-    console.log("PASO 5: Datos del pago que se van a enviar:", pagoReq);
+    //console.log("PASO 5: Datos del pago que se van a enviar:", pagoReq);
 
     if (!pagoReq.medioPago) {
         throw new Error("Debe seleccionar un Medio de Pago (Efectivo, Transferencia, etc.) para registrar el monto.");
@@ -144,7 +151,7 @@ async function ejecutarPagoDirecto(clienteId) {
         throw new Error(`El pago rebotó en el servidor (Error ${resp.status}). Detalle: ${errorDelBackend}`);
     }
     
-    console.log("PASO 6: ¡Pago registrado con éxito en la base de datos!");
+    //console.log("PASO 6: ¡Pago registrado con éxito en la base de datos!");
 }
 // Eliminar cliente
 async function eliminarCliente(id) {
@@ -161,7 +168,27 @@ async function eliminarCliente(id) {
 
     fetchClientes(currentPage);
 }
+async function borrarTodos() {
+    if (!confirm("⚠️ ¿ESTÁS SEGURO? Esta acción eliminará a TODOS los clientes y sus registros de forma permanente.")) {
+        return;
+    }
 
+    if (!confirm("CONFIRMACIÓN FINAL: ¿Realmente deseas vaciar la base de datos de clientes?")) {
+        return;
+    }
+
+    try {
+        const resp = await fetch("/clientes/all", { method: "DELETE" });
+        if (resp.ok) {
+            alert("Todos los clientes han sido eliminados.");
+            fetchClientes(0);
+        } else {
+            throw new Error("Error al intentar borrar los clientes.");
+        }
+    } catch (error) {
+        alert(error.message);
+    }
+}
 // Cancelar edición
 function cancelarEdicion() {
     document.getElementById("formCliente").hidden = true;
@@ -170,15 +197,16 @@ function cancelarEdicion() {
 
 // Limpiar formulario
 function limpiarFormulario() {
-    ["nombre", "telefono", "direccion", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV", "cantidadMB"].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            if (id === "cantidadMeses") {
-                el.value = "1";
-            } else {
-                el.value = "";
+    ["nombre", "telefono", "direccion", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV",
+         "cantidadMB","deudaInstalacion","costoInstalacion"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (id === "cantidadMeses") {
+                    el.value = "1";
+                } else {
+                    el.value = "";
+                }
             }
-        }
     });
     // Limpiar checkboxes
     document.getElementById("tieneTV").checked = false;
@@ -247,4 +275,15 @@ async function actualizarSelectPlanes() {
     } catch (error) {
         console.error("Error al actualizar el select de planes:", error);
     }
+
+    document.getElementById('deudaInstalacion').addEventListener('change', function() {
+        const inputCosto = document.getElementById('costoInstalacion');
+        
+        if (this.value === 'NO') {
+            inputCosto.value = ''; // Limpiamos el valor
+            inputCosto.disabled = true; // Lo bloqueamos
+        } else {
+            inputCosto.disabled = false; // Lo habilitamos si es Básica/Intermedia/Full
+        }
+    });
 }

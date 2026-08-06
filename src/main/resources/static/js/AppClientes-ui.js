@@ -63,6 +63,13 @@ function renderTable(clientes) {
                 </div>
             </td>`;
         }
+        let estadoInstalacion = c.deudaInstalacion === 'NO' || !c.deudaInstalacion
+        ? `<span class="badge bg-success">NO</span>`
+        : `<span class="badge bg-danger">${c.deudaInstalacion}</span>`;
+
+        let montoMostrar = (c.deudaInstalacion !== 'NO' && c.costoInstalacion > 0) 
+        ? `<strong class="text-danger">$ ${c.costoInstalacion}</strong>` 
+        : `<span class="text-muted"></span>`;
         let TVCell = '';
 
         if (c.tieneTV) {
@@ -81,6 +88,17 @@ function renderTable(clientes) {
                     <span class="badge bg-danger">No</span>
                 </div>
             </td>`;}
+
+        const notaTexto = c.nota || "";
+        const notaSegura = notaTexto.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const notaHTML = notaTexto ? `
+            <div style="max-width: 180px; min-width: 120px;">
+                <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; font-size: 0.85rem; color: #555;">
+                    ${notaTexto}
+                </div>
+                ${notaTexto.length > 40 ? `<a href="#" class="text-primary" style="font-size: 0.75rem; font-weight: bold; text-decoration: none;" onclick="alert('${notaSegura}'); return false;">Ver más...</a>` : ""}
+            </div>
+        ` : "";
         // Crear fila
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -88,7 +106,7 @@ function renderTable(clientes) {
                 ${c.nombre}
                 <span class="badge ms-2"
                       style="background-color: ${c.mesesAdeudados > 0 ? 'red' : 'green'};
-                             width:12px; height:12px; display:inline-block; border-radius:50%;"></span>
+                             width:16px; height:16px; display:inline-block; border-radius:50%;"></span>
             </td>
             <td>${c.telefono || ''}</td>
             <td>${c.direccion}</td>
@@ -98,27 +116,31 @@ function renderTable(clientes) {
             ${TVCell}
             <td>${c.medioPago || ''}</td>
             <td>${dni}</td>
-            <td>
-            ${c.montoUltimoPago || ""} - ${c.nota || ""}
-            </td>
+            <td>${estadoInstalacion}${montoMostrar}</td>
+            <td>${c.montoUltimoPago || ""} - ${notaHTML || ""}</td>
             <td>${c.fechaUltimoPago || ''}</td>
             <td>${c.cantidadMB || ''}</td>
             <td>
-            <div class="actions-container">
-                    <button class="btn btn-sm btn-warning"
-                            onclick="editarCliente(${c.id})">
-                            Editar
-                    </button>
-                    <button class="btn btn-sm btn-danger"
-                            onclick="eliminarCliente(${c.id})">
-                        Eliminar
-                    </button>
-                    ${c.mesesAdeudados > 0 && c.telefono ? `
-                    <button class="btn btn-sm btn-success"
-                            onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>
-                        WhatsApp
-                    </button>
-                    ` : ""}
+                <div class="actions-container">
+                    <div>
+                        <button class="btn btn-sm btn-warning"
+                            onclick="editarCliente(${c.id})"> Editar
+                        </button>
+                            <button class="btn btn-sm btn-info" 
+                            onclick="generarReciboIndividual(${c.id})"> Generar Recibo
+                        </button>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-danger"
+                                onclick="eliminarCliente(${c.id})"> Eliminar
+                        </button>
+                        ${c.mesesAdeudados > 0 && c.telefono ? `
+                        <button class="btn btn-sm btn-success"
+                                onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>
+                            WhatsApp
+                        </button>
+                        ` : ""}
+                    </div>
                 </div>
             </td>
         `;
@@ -128,6 +150,7 @@ function renderTable(clientes) {
     
     // Actualizar contadores
     actualizarContadores(clientes);
+    
 }
 
 // Renderizar paginación

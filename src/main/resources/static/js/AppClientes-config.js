@@ -138,10 +138,7 @@ async function guardarConfiguracionGeneral() {
         alert("¡Configuración guardada! Los próximos recibos usarán estos precios.");
         configModal.hide();
         
-        // Actualizar el select de planes en el modal de clientes
-        if (typeof actualizarSelectPlanes === 'function') {
-            await actualizarSelectPlanes();
-        }
+       window.location.reload();
         
     } catch (e) {
         console.error("Error al guardar:", e);

@@ -2,6 +2,7 @@ package com.clientesinternet.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -46,6 +47,11 @@ public class Cliente {
     
     private String dni;
     
+    @Builder.Default
+    private String deudaInstalacion = "NO";
+     // Valores: NO, BASICA, INTERMEDIA, FULL
+    @Builder.Default
+    private Integer costoInstalacion = 0;
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Pago> pagos;
 }

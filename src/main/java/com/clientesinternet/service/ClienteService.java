@@ -18,9 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.time.YearMonth;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+
 
 @Service("ClienteService")
 public class ClienteService {
@@ -53,7 +53,10 @@ public class ClienteService {
                 .tieneFibraTV(req.getTieneFibraTV() != null ? req.getTieneFibraTV() : false)
                 .usuarioFibraTV(req.getUsuarioFibraTV())
                 .dni(req.getDni())
-                .plan(plan) // Asignamos el objeto Plan completo
+                .deudaInstalacion(req.getDeudaInstalacion() != null ? req.getDeudaInstalacion() : "NO")
+                .costoInstalacion("NO".equalsIgnoreCase(req.getDeudaInstalacion()) ? 0 :
+                     (req.getCostoInstalacion() != null ? req.getCostoInstalacion() : 0))
+                .plan(plan)
                 .esDemo(req.getEsDemo() != null ? req.getEsDemo() : false)
                 .fechaVencimientoDemo(req.getFechaVencimientoDemo())
                 .build();
@@ -61,6 +64,7 @@ public class ClienteService {
         return castToResponse(clienteRepo.save(cliente));
     }
 
+    @Transactional
     public ClienteResp update(Long id, ClienteReq req) {
         Cliente cliente = clienteRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
@@ -74,7 +78,12 @@ public class ClienteService {
         cliente.setDni(req.getDni());
         cliente.setEsDemo(req.getEsDemo());
         cliente.setFechaVencimientoDemo(req.getFechaVencimientoDemo());
-
+        cliente.setDeudaInstalacion(req.getDeudaInstalacion());
+        if ("NO".equalsIgnoreCase(req.getDeudaInstalacion())) {
+            cliente.setCostoInstalacion(0);
+        } else {
+            cliente.setCostoInstalacion(req.getCostoInstalacion());
+        }
         if (req.getCantidadMB() != null) {
             PlanInternet plan = planRepo.findById(req.getCantidadMB().longValue()).orElse(null);
             cliente.setPlan(plan);
@@ -82,7 +91,7 @@ public class ClienteService {
 
         return castToResponse(clienteRepo.save(cliente));
     }
-
+    @Transactional
     public Page<ClienteResp> findPaged(
             int page,
             int size,
@@ -91,58 +100,79 @@ public class ClienteService {
             String sort,
             String dir
     ) {
-        System.out.println("soloDeudores recibido: " + deudores);
-        System.out.println("Tipo: " + (deudores != null ? deudores.getClass().getName() : "null"));
-
-        Set<String> SORT_DB = Set.of("nombre", "direccion");
-
-        Sort sortObj = Sort.unsorted();
-
-        if (SORT_DB.contains(sort)) {
-            sortObj = Sort.by(
-                    "desc".equalsIgnoreCase(dir)
-                            ? Sort.Direction.DESC
-                            : Sort.Direction.ASC,
-                    sort
-            );
-        }
-
-        Pageable pageable = PageRequest.of(
-                page,
-                size,
-                sortObj
+        // 1. Definimos qué columnas SÍ existen en la Base de Datos para que SQL las ordene
+        Set<String> columnasDB = Set.of(
+            "nombre", "direccion", "mesesAdeudados", "mesesPagados", 
+            "deudaInstalacion", "tieneFibraTV", "tieneTV", "costoInstalacion"
         );
 
-        Page<Cliente> clientes = (nombre == null || nombre.isBlank())
-                ? clienteRepo.findAll(pageable)
-                : clienteRepo.findByNombreContainingIgnoreCase(nombre, pageable);
+        Sort sortObj = Sort.unsorted();
+        boolean ordenarEnMemoria = false;
 
-        List<ClienteResp> filtrados = clientes.stream()
-                .map(this::castToResponse)
-                .filter(c -> {
-                    if (deudores == null) {
-                        return true; // Todos
-                    }
-                    if (deudores) {
-                        return c.getMesesAdeudados() > 0; // Solo deudores
-                    } else {
-                        return c.getMesesAdeudados() <= 0; // Solo al día
-                    }
-                })
-                .toList();
-        if ("mesesAdeudados".equals(sort)) {
-            Comparator<ClienteResp> comp = Comparator.comparingInt(ClienteResp::getMesesAdeudados);
-            if ("desc".equalsIgnoreCase(dir)) comp = comp.reversed();
-            filtrados = filtrados.stream().sorted(comp).toList();
+        // 2. ¿El campo pertenece a la DB o a Memoria?
+        if (sort != null && columnasDB.contains(sort)) {
+            // Lógica para SQL
+            String sortField = "mesesAdeudados".equals(sort) ? "mesesPagados" : sort;
+            if ("deudaInstalacion".equals(sort)) {
+            sortField = "costoInstalacion";
+            }
+            Sort.Direction direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+            
+            // Invertimos la lógica visual si es deuda (porque a menos meses pagados, mayor deuda)
+            if ("mesesAdeudados".equals(sort)) {
+                direction = "desc".equalsIgnoreCase(dir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+            }
+            Sort.Order order = new Sort.Order(direction, sortField);
+            if ("nombre".equals(sortField) || "direccion".equals(sortField)) {
+                order = order.ignoreCase();
+            }
+            sortObj = Sort.by(order);
+            
+        } else if (sort != null && !sort.isBlank()) {
+            // Es un campo calculado (como medioPago). Le decimos a la DB que NO lo ordene
+            ordenarEnMemoria = true; 
         }
+
+        // 3. Delegamos a la DB (Si era medioPago, el sortObj va vacío para que no explote)
+        Pageable pageable = PageRequest.of(page, size, sortObj);
+        Page<Cliente> clientesPage = clienteRepo.findFiltered(nombre, deudores, pageable);
+
+        // 4. Mapeamos de Entidad a DTO
+        List<ClienteResp> filtrados = new java.util.ArrayList<>(
+                clientesPage.stream().map(this::castToResponse).toList()
+        );
+
+        // 5. Si era "medioPago", lo ordenamos acá en Java usando la lista que ya trajimos
+        if (ordenarEnMemoria) {
+            java.util.Comparator<ClienteResp> comp = null;
+
+            if ("medioPago".equals(sort)) {
+                comp = java.util.Comparator.comparing(
+                    c -> c.getMedioPago() == null ? "" : c.getMedioPago(),
+                    String::compareToIgnoreCase
+                );
+            }
+
+            // Si encontramos un comparador válido, ordenamos la lista
+            if (comp != null) {
+                if ("desc".equalsIgnoreCase(dir)) {
+                    comp = comp.reversed();
+                }
+                filtrados.sort(comp);
+            }
+        }
+
+        // 6. Devolvemos la página lista para el Frontend
         return new PageImpl<>(
                 filtrados,
                 pageable,
-                clientes.getTotalElements()
+                clientesPage.getTotalElements()
         );
     }
+    @Transactional
     public ClienteResp findById (Long id){
-       Cliente cliente = clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+       Cliente cliente = clienteRepo.findById(id)
+       .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
         return castToResponse(cliente);
     }
 
@@ -160,10 +190,11 @@ public class ClienteService {
     }
     public List<ClienteResp> buscarClientesExcel(Boolean soloDeudores, String nombre) {
 
+        Sort sortObj = Sort.by(Sort.Order.asc("nombre").ignoreCase());
+
         List<Cliente> clientes = (nombre == null || nombre.isBlank())
-                ? clienteRepo.findAll(Sort.by("nombre").ascending())
-                : clienteRepo.findByNombreContainingIgnoreCase(
-                nombre, Sort.by("nombre").ascending());
+                ? clienteRepo.findAll(sortObj)
+                : clienteRepo.findByNombreContainingIgnoreCase(nombre, sortObj);
 
         return clientes.stream()
                 .map(this::castToResponse)
@@ -220,6 +251,8 @@ public class ClienteService {
                 cliente.getFechaVencimientoDemo(),
                 medioPago,
                 dni,
+                cliente.getDeudaInstalacion(),
+                cliente.getCostoInstalacion(),
                 (ultimoPago != null) ? ultimoPago.getNota() : null,
                 (ultimoPago != null) ? ultimoPago.getFechaPago() : null,
                 (ultimoPago != null) ? ultimoPago.getMonto() : null,
@@ -229,5 +262,9 @@ public class ClienteService {
 
     public void delete(Long id) {
         clienteRepo.delete(clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
+    }
+    @Transactional
+    public void deleteAll() {
+        clienteRepo.deleteAll();
     }
 }

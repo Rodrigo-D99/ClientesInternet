@@ -6,6 +6,7 @@ import com.clientesinternet.repository.ClienteRepository;
 import com.clientesinternet.repository.PlanInternetRepository;
 import jakarta.transaction.Transactional;
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -21,6 +22,7 @@ public class ClienteImportExcelService {
     
     private final ClienteRepository clienteRepo;
     private final PlanInternetRepository planRepo;
+    private final DataFormatter dataFormatter = new DataFormatter();
 
     @Autowired
     public ClienteImportExcelService(ClienteRepository clienteRepo, PlanInternetRepository planRepo) {
@@ -61,13 +63,17 @@ public class ClienteImportExcelService {
                         // Si no es un número, queda en null
                     }
                 }
+                String fibraTVStr = getCell(row, 4);
+                boolean tieneFibraTV = fibraTVStr != null && fibraTVStr.equalsIgnoreCase("SI");
+                String usuarioFibraTV = getCell(row, 5);
 
                 Cliente cliente = Cliente.builder()
                         .nombre(nombre)
                         .telefono(getCell(row, 1))
                         .direccion(getCell(row, 2))
-                        .plan(planAsignado) // <-- Acá está el cambio
-                        .tieneFibraTV(false)
+                        .plan(planAsignado)
+                        .tieneFibraTV(tieneFibraTV)
+                        .usuarioFibraTV(usuarioFibraTV)
                         .build();
 
                 clienteRepo.save(cliente);
@@ -84,7 +90,7 @@ public class ClienteImportExcelService {
     private String getCell(Row row, int index) {
         Cell cell = row.getCell(index);
         if (cell == null) return null;
-        String value = cell.toString().trim();
+        String value = dataFormatter.formatCellValue(cell).trim();
         return value.isEmpty() ? null : value;
     }
 }

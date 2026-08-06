@@ -82,6 +82,13 @@ document.addEventListener("DOMContentLoaded", () => {
             window.open('/api/recibos/pdf-masivo', '_blank');
         });
     }
+    function generarReciboIndividual(id) {
+    if (!id) return;
+    window.open(`/api/recibos/pdf-individual/${id}`, '_blank');
+    }
+
+    window.generarReciboIndividual = generarReciboIndividual;
+
     // ============================================================
     // FILTROS
     // ============================================================
@@ -145,10 +152,9 @@ async function fetchClientes(page = 0) {
     const resp = await fetch(url);
     const data = await resp.json();
 
-    currentPage = data.number;
-    totalPages = data.totalPages;
-console.log("CLIENTES RECIBIDOS:", data.content ? data.content : data);
-    renderTable(data.content);
+    currentPage = data.number || (data.page ? data.page.number : 0);
+    totalPages = data.totalPages || (data.page ? data.page.totalPages : 1);
+    renderTable(data.content || data);
     renderPagination();
 }
 

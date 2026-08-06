@@ -24,4 +24,6 @@ public class ClienteReq {
     private java.time.LocalDate fechaVencimientoDemo;
     private Integer cantidadMB;
     private String dni;
+    private String deudaInstalacion;
+    private Integer costoInstalacion;
 }

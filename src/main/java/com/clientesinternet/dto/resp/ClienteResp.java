@@ -23,7 +23,9 @@ public class ClienteResp {
     private boolean esDemo;
     private LocalDate fechaVencimientoDemo;
     private String medioPago; 
-    private String dni;       
+    private String dni;
+    private String deudaInstalacion;
+    private Integer costoInstalacion;       
     private String nota;      
     private LocalDate fechaUltimoPago;
     private BigDecimal montoUltimoPago;
