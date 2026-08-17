@@ -154,8 +154,23 @@ async function ejecutarPagoDirecto(clienteId) {
     //console.log("PASO 6: ¡Pago registrado con éxito en la base de datos!");
 }
 // Eliminar cliente
+
+
+const PASSWORD_SEGURIDAD = "admin123"; 
+
+
 async function eliminarCliente(id) {
-    if (!confirm("¿Seguro que deseas eliminar este cliente?")) return;
+   
+    const passwordIngresada = prompt("Seguridad: Ingrese la contraseña para eliminar este cliente:");
+
+   
+    if (passwordIngresada !== PASSWORD_SEGURIDAD) {
+        alert("❌ Contraseña incorrecta o acción cancelada. No se eliminó el cliente.");
+        return;
+    }
+
+    // Si la contraseña es correcta, pedimos una última confirmación
+    if (!confirm("¿Seguro que deseas eliminar este cliente definitivamente?")) return;
 
     const resp = await fetch(`/clientes/${id}`, {
         method: "DELETE"
@@ -168,7 +183,17 @@ async function eliminarCliente(id) {
 
     fetchClientes(currentPage);
 }
+
+// Borrar todos los clientes 
 async function borrarTodos() {
+    const passwordIngresada = prompt("⚠️ ACCIÓN PELIGROSA: Ingrese la contraseña maestra para vaciar la base de datos:");
+
+    
+    if (passwordIngresada !== PASSWORD_SEGURIDAD) {
+        alert("❌ Contraseña incorrecta o acción cancelada. La base de datos está a salvo.");
+        return; 
+    }
+
     if (!confirm("⚠️ ¿ESTÁS SEGURO? Esta acción eliminará a TODOS los clientes y sus registros de forma permanente.")) {
         return;
     }
