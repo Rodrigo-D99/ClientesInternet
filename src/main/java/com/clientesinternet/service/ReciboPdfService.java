@@ -69,14 +69,20 @@ public class ReciboPdfService {
                 mbPlan = cliente.getPlan().getCantidadMB();
             }
 
+            double costofibraTV = 0;
+            
             double costoTV = 0;
             String textoTvDetalle = "";
             if (Boolean.TRUE.equals(cliente.getTieneFibraTV())) {
-                costoTV = obtenerPrecioTV();
-                textoTvDetalle = " + Fibra TV: $" + (int)costoTV;
+                costofibraTV = obtenerPrecioTV();
+                textoTvDetalle = " + Fibra TV: $" + (int)costofibraTV;
             }
             
             String tieneTvCable = Boolean.TRUE.equals(cliente.getTieneTV()) ? "Sí" : "No";
+            if(tieneTvCable.equals("Sí")&& obtenerPrecioCableTV()>0) {
+                costoTV = obtenerPrecioCableTV();
+                textoTvDetalle += " + TV por Cable: $" + (int)costoTV;
+            }
 
             PdfPTable tableRecibo = new PdfPTable(1);
             tableRecibo.setWidthPercentage(100);
@@ -104,7 +110,7 @@ public class ReciboPdfService {
             body.add(new Chunk("PRECIO INTERNET:\n", fontTitulo));
             body.add("• EFECTIVO : $ " + String.format("%.2f", precioEfectivo) + "\n");
             body.add("• TRANSFERENCIA / TARJETA: $ " + String.format("%.2f", precioTransferencia) + "\n");
-            body.add(new Chunk("Tiene TV cable: ", fontTitulo));
+            body.add(new Chunk("Tiene TV por cable: ", fontTitulo));
             body.add(tieneTvCable + "\n");
             
             if (cliente.getDeudaInstalacion() != null && !cliente.getDeudaInstalacion().equals("NO")) {
@@ -117,8 +123,8 @@ public class ReciboPdfService {
             tableMonto.setWidthPercentage(35);
             tableMonto.setHorizontalAlignment(Element.ALIGN_RIGHT);
             
-            double totalEfec = precioEfectivo + costoTV + costoInstalacion;
-            double totalTrf = precioTransferencia + costoTV + costoInstalacion;
+            double totalEfec = precioEfectivo + costoTV + costofibraTV+ costoInstalacion;
+            double totalTrf = precioTransferencia + costoTV + costofibraTV + costoInstalacion;
 
             PdfPCell celdaMontoEfec = new PdfPCell(new Phrase("TOTAL EFEC: $ " + (int)totalEfec, fontTitulo));
             celdaMontoEfec.setBackgroundColor(java.awt.Color.LIGHT_GRAY);
@@ -152,6 +158,11 @@ public class ReciboPdfService {
 
     private double obtenerPrecioTV() {
         return configuracionRepository.findById("PRECIO_FIBRA_TV")
+                .map(Configuracion::getValor)
+                .orElse(0.0);
+    }
+     private double obtenerPrecioCableTV() {
+        return configuracionRepository.findById("PRECIO_CABLE_TV")
                 .map(Configuracion::getValor)
                 .orElse(0.0);
     }
