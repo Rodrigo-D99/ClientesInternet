@@ -23,6 +23,7 @@ public class Cliente {
 
     private String telefono;
     private String direccion;
+    private String email; 
     private String sort;
     
     @Builder.Default

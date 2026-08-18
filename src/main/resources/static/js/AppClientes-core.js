@@ -101,11 +101,10 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("formCliente")
         .addEventListener("submit", guardarCliente);
 
-    document.getElementById("medioPago")
-        .addEventListener("change", validarDniRecomendado);
+    document.getElementById("medioPago")?.addEventListener("change", validarDniRecomendado);
 
     document.getElementById("dni")
-        .addEventListener("input", validarDniRecomendado);
+        ?.addEventListener("input", validarDniRecomendado);
 
     // ============================================================
     // TAMAÑO DE PÁGINA

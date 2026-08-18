@@ -21,17 +21,18 @@ function getPageSize() {
 
 
 // Guardar cliente (crear o editar)
+// 1. Modificar guardarCliente (solo guarda datos)[cite: 29]
 async function guardarCliente(e) {
     e.preventDefault();
     const cliente = {
         nombre: document.getElementById("nombre").value,
         telefono: document.getElementById("telefono").value,
         direccion: document.getElementById("direccion").value,
+        email: document.getElementById("email").value, 
         tieneTV: document.getElementById("tieneTV").checked,
         tieneFibraTV: document.getElementById("tieneFibraTV").checked,
         usuarioFibraTV: document.getElementById("usuarioFibraTV").value || null,
         cantidadMB: document.getElementById("cantidadMB").value !== '' ? Number(document.getElementById("cantidadMB").value) : null,
-        dni: document.getElementById("dni").value || null,
         deudaInstalacion: document.getElementById("deudaInstalacion").value,
         costoInstalacion: document.getElementById("costoInstalacion").value ? parseFloat(document.getElementById("costoInstalacion").value) : 0,
     };
@@ -40,7 +41,6 @@ async function guardarCliente(e) {
     const endpoint = clienteEditandoId ? `/clientes/${clienteEditandoId}` : "/clientes";
 
     try {
-        //console.log("PASO 1: Guardando cliente en backend...", cliente);
         const resp = await fetch(endpoint, {
             method: method,
             headers: { "Content-Type": "application/json" },
@@ -49,45 +49,17 @@ async function guardarCliente(e) {
 
         if (!resp.ok) throw new Error("Error al guardar el cliente en el servidor.");
 
-        const textResp = await resp.text();
-        let clienteGuardado = {};
-        if (textResp) {
-            clienteGuardado = JSON.parse(textResp);
-        }
-
-        const idParaPago = clienteEditandoId || clienteGuardado.id;
-        //console.log("PASO 2: Cliente guardado ok. ID a usar para el pago:", idParaPago);
-
-        if (!idParaPago) {
-            throw new Error("No se pudo obtener el ID del cliente para registrar el pago.");
-        }
-
-        // PASO 3: Procesar el pago si hay monto
-        const montoStr = document.getElementById("monto").value;
-        const monto = parseFloat(montoStr);
-        //console.log("PASO 3: Monto leído del formulario:", monto);
-    
-        if (!isNaN(monto) && monto > 0) {
-            console.log("PASO 4: Iniciando el registro del pago...");
-            await ejecutarPagoDirecto(idParaPago);
-        } /*else {
-            console.log("PASO 4: El monto está vacío o es 0, se omite el pago.");
-        }*/
-
-        clienteModal.hide();
+        const clienteModalEl = bootstrap.Modal.getInstance(document.getElementById('clienteModal'));
+        clienteModalEl.hide();
         fetchClientes(currentPage);
-        //alert("¡Operación completada exitosamente!");
-
     } catch (error) {
-        //console.error("❌ ERROR DETECTADO EN JS:", error);
         alert("Ocurrió un error: " + error.message);
     }
 }
 
-// Editar cliente (cargar datos al modal)
+// 2. Modificar editarCliente (solo carga datos del cliente)[cite: 29]
 async function editarCliente(id) {
     clienteEditandoId = id;
-
     const resp = await fetch(`/clientes/${id}`);
     const c = await resp.json();
 
@@ -96,6 +68,7 @@ async function editarCliente(id) {
     document.getElementById("nombre").value = c.nombre ?? "";
     document.getElementById("telefono").value = c.telefono ?? "";
     document.getElementById("direccion").value = c.direccion ?? "";
+    document.getElementById("email").value = c.email ?? "";
     document.getElementById("tieneTV").checked = c.tieneTV ?? false;
     document.getElementById("tieneFibraTV").checked = c.tieneFibraTV ?? false;
     document.getElementById("usuarioFibraTV").value = c.usuarioFibraTV ?? "";
@@ -109,23 +82,73 @@ async function editarCliente(id) {
     await actualizarSelectPlanes();
     const cantidadMBEl = document.getElementById("cantidadMB");
     if (cantidadMBEl) cantidadMBEl.value = c.cantidadMB ?? "";
-    
-    // Poblar campos relacionados a último pago (medio de pago y DNI)
-    const medioEl = document.getElementById("medioPago");
-    if (medioEl) medioEl.value = c.medioPago ?? "";
-    const dniEl = document.getElementById("dni");
-    if (dniEl) dniEl.value = c.dni ?? "";
-    const montoEl = document.getElementById("monto");
-    if (montoEl) montoEl.value = c.montoUltimoPago ?? "";
-    const notaEl = document.getElementById("nota");
-    if (notaEl) notaEl.value = c.nota ?? "";
-
-    // Validar si mostrar advertencia de DNI según medio de pago
-    if (typeof validarDniRecomendado === 'function') validarDniRecomendado();
-    clienteModal.show();
+    const clienteModal = bootstrap.Modal.getInstance(document.getElementById('clienteModal')).show();
 }
 
-async function ejecutarPagoDirecto(clienteId) {
+// 3. Crear las funciones para el nuevo modal de Pago[cite: 29]
+function abrirModalPago(idCliente) {
+    document.getElementById("formPago").reset();
+    document.getElementById("pagoClienteId").value = idCliente;
+    new bootstrap.Modal(document.getElementById('pagoModal')).show();
+}
+
+async function registrarPago(e) {
+    e.preventDefault();
+    const clienteId = document.getElementById("pagoClienteId").value;
+    
+    const pagoReq = {
+        monto: parseFloat(document.getElementById("pagoMonto").value),
+        medioPago: document.getElementById("pagoMedioPago").value,
+        cantidadMeses: parseInt(document.getElementById("pagoCantidadMeses").value) || 1,
+        nota: document.getElementById("pagoNota").value || null,
+        dniPagador: document.getElementById("pagoDni").value || null
+    };
+    
+    if (!pagoReq.medioPago || isNaN(pagoReq.monto)) {
+        alert("Debe seleccionar un Medio de Pago y un Monto válido.");
+        return;
+    }
+    
+    try {
+        const resp = await fetch(`/pagos/${clienteId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pagoReq)
+        });
+        
+        if (!resp.ok) {
+            const errorDelBackend = await resp.text(); 
+            throw new Error(`Detalle: ${errorDelBackend}`);
+        }
+        
+        const pagoModalEl = bootstrap.Modal.getInstance(document.getElementById('pagoModal'));
+        pagoModalEl.hide();
+        fetchClientes(currentPage);
+        
+    } catch (error) {
+        alert("Error al registrar el pago: " + error.message);
+    }
+}
+
+// Limpiar formulario
+function limpiarFormulario() {
+    ["nombre", "telefono", "direccion", "email", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV",
+            "cantidadMB","deudaInstalacion","costoInstalacion"].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                if (id === "cantidadMeses") {
+                    el.value = "1";
+                } else {
+                    el.value = "";
+                }
+            }
+    });
+    // Limpiar checkboxes
+    document.getElementById("tieneTV").checked = false;
+    document.getElementById("tieneFibraTV").checked = false;
+    }
+    
+    async function ejecutarPagoDirecto(clienteId) {
     const pagoReq = {
         monto: parseFloat(document.getElementById("monto").value),
         medioPago: document.getElementById("medioPago").value,
@@ -220,23 +243,6 @@ function cancelarEdicion() {
     limpiarFormulario();
 }
 
-// Limpiar formulario
-function limpiarFormulario() {
-    ["nombre", "telefono", "direccion", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV",
-         "cantidadMB","deudaInstalacion","costoInstalacion"].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                if (id === "cantidadMeses") {
-                    el.value = "1";
-                } else {
-                    el.value = "";
-                }
-            }
-    });
-    // Limpiar checkboxes
-    document.getElementById("tieneTV").checked = false;
-    document.getElementById("tieneFibraTV").checked = false;
-}
 
 // Validar DNI recomendado según medio de pago
 function validarDniRecomendado() {

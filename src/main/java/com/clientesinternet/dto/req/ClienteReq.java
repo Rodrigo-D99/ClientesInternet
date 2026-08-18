@@ -16,7 +16,7 @@ public class ClienteReq {
     private String telefono;
 
     private String direccion;
-    
+    private String email;
     private Boolean tieneFibraTV;
     private Boolean tieneTV;
     private String usuarioFibraTV;

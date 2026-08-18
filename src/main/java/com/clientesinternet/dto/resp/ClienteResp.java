@@ -14,6 +14,7 @@ public class ClienteResp {
     private String nombre;
     private String telefono;
     private String direccion;
+    private String email;
     private boolean tieneDeuda;
     private int mesesAdeudados;
     private int mesesPagados;

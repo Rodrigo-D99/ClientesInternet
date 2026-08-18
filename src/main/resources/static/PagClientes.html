@@ -116,16 +116,13 @@
 <div class="modal fade" id="clienteModal" tabindex="-1">
     <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-
             <div class="modal-header">
                 <h5 class="modal-title" id="tituloForm">Nuevo cliente</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
             <div class="modal-body">
                 <form id="formCliente">
                     <div class="row g-2">
-                        
                         <div class="col-md-6">
                             <label class="form-label">Nombre</label>
                             <input id="nombre" class="form-control" required>
@@ -134,9 +131,13 @@
                             <label class="form-label">Teléfono</label>
                             <input id="telefono" class="form-control">
                         </div>
-                        <div class="col-md-12">
+                        <div class="col-md-6">
                             <label class="form-label">Dirección</label>
                             <input id="direccion" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input id="email" type="email" class="form-control" placeholder="ejemplo@correo.com">
                         </div>
 
                         <div class="col-md-6">
@@ -153,32 +154,7 @@
                             <input type="number" class="form-control" id="costoInstalacion" placeholder="0">
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label">Medio de pago</label>
-                            <select id="medioPago" class="form-select">
-                                <option value="">Seleccione</option>
-                                <option value="EFECTIVO">Efectivo</option>
-                                <option value="TRANSFERENCIA">Transferencia</option>
-                                <option value="TARJETA">Tarjeta</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">Monto</label>
-                            <input type="number" step="0.01" min="0" id="monto" class="form-control" placeholder="Ej: 5000">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">DNI</label>
-                            <input id="dni" class="form-control">
-                            <small id="dniWarning" class="text-warning d-none">
-                                ⚠️ Para transferencias o tarjetas se recomienda cargar DNI
-                            </small>
-                        </div>
-
-                        <div class="col-md-6">
-                            <label class="form-label">Meses a pagar</label>
-                            <input type="number" min="1" value="1" id="cantidadMeses" class="form-control">
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <label class="form-label">Cantidad MB</label>
                             <select id="cantidadMB" class="form-select">
                                 <option value="">Seleccione un plan...</option>
@@ -188,38 +164,74 @@
                         <div class="col-md-4">
                             <div class="form-check mt-4">
                                 <input class="form-check-input" type="checkbox" id="tieneTV">
-                                <label class="form-check-label" for="tieneTV">
-                                    ¿Tiene TV por cable?
-                                </label>
+                                <label class="form-check-label" for="tieneTV">¿Tiene TV por cable?</label>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="form-check mt-4">
                                 <input class="form-check-input" type="checkbox" id="tieneFibraTV">
-                                <label class="form-check-label" for="tieneFibraTV">
-                                    ¿Tiene Fibra TV?
-                                </label>
+                                <label class="form-check-label" for="tieneFibraTV">¿Tiene Fibra TV?</label>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Usuario Fibra TV</label>
                             <input id="usuarioFibraTV" class="form-control" placeholder="Ej: c000usuario@live.ar">
                         </div>
-
-                        <div class="col-12 mt-2">
-                            <label class="form-label">Nota</label>
-                            <textarea id="nota" class="form-control" rows="2"></textarea>
-                        </div>
-
                     </div>
                 </form>
             </div>
-
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" form="formCliente" class="btn btn-primary">Guardar</button>
+                <button type="button" onclick="guardarCliente(event)" class="btn btn-primary">Guardar Datos</button>
             </div>
+        </div>
+    </div>
+</div>
 
+<!-- Modal para Cobrar -->
+<div class="modal fade" id="pagoModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Registrar Pago</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formPago">
+                    <input type="hidden" id="pagoClienteId">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Medio de pago</label>
+                            <select id="pagoMedioPago" class="form-select" required>
+                                <option value="">Seleccione</option>
+                                <option value="EFECTIVO">Efectivo</option>
+                                <option value="TRANSFERENCIA">Transferencia</option>
+                                <option value="TARJETA">Tarjeta</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Monto ($)</label>
+                            <input type="number" step="0.01" min="1" id="pagoMonto" class="form-control" placeholder="Ej: 5000" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">DNI</label>
+                            <input id="pagoDni" class="form-control">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Meses a pagar</label>
+                            <input type="number" min="1" value="1" id="pagoCantidadMeses" class="form-control" required>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <label class="form-label">Nota / Observaciones</label>
+                            <textarea id="pagoNota" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" onclick="registrarPago(event)" class="btn btn-success">Confirmar Cobro</button>
+            </div>
         </div>
     </div>
 </div>

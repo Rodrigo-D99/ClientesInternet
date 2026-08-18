@@ -49,6 +49,7 @@ public class ClienteService {
                 .nombre(req.getNombre())
                 .telefono(req.getTelefono())
                 .direccion(req.getDireccion())
+                .email(req.getEmail())
                 .tieneTV(req.getTieneTV() != null ? req.getTieneTV() : false)
                 .tieneFibraTV(req.getTieneFibraTV() != null ? req.getTieneFibraTV() : false)
                 .usuarioFibraTV(req.getUsuarioFibraTV())
@@ -72,6 +73,7 @@ public class ClienteService {
         cliente.setNombre(req.getNombre());
         cliente.setTelefono(req.getTelefono());
         cliente.setDireccion(req.getDireccion());
+        cliente.setEmail(req.getEmail());
         cliente.setTieneTV(req.getTieneTV());
         cliente.setTieneFibraTV(req.getTieneFibraTV());
         cliente.setUsuarioFibraTV(req.getUsuarioFibraTV());
@@ -241,6 +243,7 @@ public class ClienteService {
                 cliente.getNombre(),
                 cliente.getTelefono(),
                 cliente.getDireccion(),
+                cliente.getEmail(),
                 deuda,
                 mesesAdeudados,
                 mesesPagados,

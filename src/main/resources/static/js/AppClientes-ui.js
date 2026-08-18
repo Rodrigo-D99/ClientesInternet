@@ -110,6 +110,7 @@ function renderTable(clientes) {
             </td>
             <td>${c.telefono || ''}</td>
             <td>${c.direccion}</td>
+            <td>${c.email || ''}</td> <!-- NUEVA CELDA DE EMAIL -->
             <td>${c.mesesAdeudados}</td>
             <td>${c.mesesPagados || 0}</td>
             ${fibraTVCell}
@@ -122,29 +123,20 @@ function renderTable(clientes) {
             <td>${c.cantidadMB || ''}</td>
             <td>
                 <div class="actions-container">
-                    <div>
-                        <button class="btn btn-sm btn-warning"
-                            onclick="editarCliente(${c.id})"> Editar
-                        </button>
-                            <button class="btn btn-sm btn-info" 
-                            onclick="generarReciboIndividual(${c.id})"> Generar Recibo
-                        </button>
+                    <div class="mb-1">
+                        <button class="btn btn-sm btn-success" onclick="abrirModalPago(${c.id})"> Cobrar</button>
+                        <button class="btn btn-sm btn-warning" onclick="editarCliente(${c.id})"> Editar</button>
                     </div>
                     <div>
-                        <button class="btn btn-sm btn-danger"
-                                onclick="eliminarCliente(${c.id})"> Eliminar
-                        </button>
+                        <button class="btn btn-sm btn-info" onclick="generarReciboIndividual(${c.id})"> Recibo</button>
+                        <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})"> Eliminar</button>
                         ${c.mesesAdeudados > 0 && c.telefono ? `
-                        <button class="btn btn-sm btn-success"
-                                onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>
-                            WhatsApp
-                        </button>
+                        <button class="btn btn-sm btn-success" onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>WhatsApp</button>
                         ` : ""}
                     </div>
                 </div>
             </td>
         `;
-
         tbody.appendChild(tr);
     });
     
