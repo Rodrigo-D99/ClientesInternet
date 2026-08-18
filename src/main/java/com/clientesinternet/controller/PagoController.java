@@ -2,6 +2,7 @@ package com.clientesinternet.controller;
 
 import com.clientesinternet.dto.req.NotaReq;
 import com.clientesinternet.dto.req.PagoReq;
+import com.clientesinternet.dto.resp.PagoHistorialResp;
 import com.clientesinternet.dto.resp.PagoResp;
 
 import jakarta.validation.Valid;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.clientesinternet.service.PagoService;
+import java.util.List;
 
 @RestController
 @RequestMapping("pagos")
@@ -32,5 +34,8 @@ public class PagoController {
                                @RequestBody NotaReq req) {
         service.actualizarNota(id, req.nota());
     }
-
+    @GetMapping("/{clienteId}/historial")
+    public ResponseEntity<List<PagoHistorialResp>> verHistorial(@PathVariable Long clienteId) {
+        return ResponseEntity.ok(service.obtenerHistorial(clienteId));
+    }
 }

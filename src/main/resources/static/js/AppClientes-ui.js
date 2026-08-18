@@ -126,6 +126,7 @@ function renderTable(clientes) {
                     <div class="mb-1">
                         <button class="btn btn-sm btn-success" onclick="abrirModalPago(${c.id})"> Cobrar</button>
                         <button class="btn btn-sm btn-warning" onclick="editarCliente(${c.id})"> Editar</button>
+                        <button class="btn btn-sm btn-info" onclick="verHistorialPagos(${c.id})"> Historial</button>
                     </div>
                     <div>
                         <button class="btn btn-sm btn-info" onclick="generarReciboIndividual(${c.id})"> Recibo</button>

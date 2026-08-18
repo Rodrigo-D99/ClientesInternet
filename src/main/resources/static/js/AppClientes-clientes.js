@@ -82,7 +82,7 @@ async function editarCliente(id) {
     await actualizarSelectPlanes();
     const cantidadMBEl = document.getElementById("cantidadMB");
     if (cantidadMBEl) cantidadMBEl.value = c.cantidadMB ?? "";
-    const clienteModal = bootstrap.Modal.getInstance(document.getElementById('clienteModal')).show();
+    const clienteModalEl = bootstrap.Modal.getInstance(document.getElementById('clienteModal')).show();
 }
 
 // 3. Crear las funciones para el nuevo modal de Pago[cite: 29]
@@ -262,7 +262,44 @@ function validarDniRecomendado() {
     }
 }
 
+// ============================================================
+// HISTORIAL DE PAGOS
+// ============================================================
+async function verHistorialPagos(clienteId) {
+    try {
+        const resp = await fetch(`/pagos/${clienteId}/historial`);
+        if (!resp.ok) throw new Error("Error al obtener el historial de pagos");
+        
+        const historial = await resp.json();
+        const tbody = document.getElementById("historialTableBody");
+        tbody.innerHTML = ""; // Limpiamos la tabla
 
+        if (historial.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='5' class='text-center text-muted'>No hay pagos registrados para este cliente.</td></tr>";
+        } else {
+            historial.forEach(p => {
+                // Formatear la fecha (de AAAA-MM-DD a DD/MM/AAAA)
+                const fechaFormat = p.fechaPago ? p.fechaPago.split('-').reverse().join('/') : '-';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${fechaFormat}</strong></td>
+                        <td class="text-success fw-bold">$${p.monto}</td>
+                        <td><span class="badge bg-secondary">${p.medioPago}</span></td>
+                        <td>${p.cantidadMeses}</td>
+                        <td class="text-start">${p.nota || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        // Mostrar el modal
+        new bootstrap.Modal(document.getElementById('historialModal')).show();
+        
+    } catch (error) {
+        alert(error.message);
+    }
+}
 // ============================================================
 // FUNCIONES DE PLANES (SELECT DINÁMICO)
 // ============================================================

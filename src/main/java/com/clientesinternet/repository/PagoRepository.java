@@ -3,7 +3,7 @@ package com.clientesinternet.repository;
 import com.clientesinternet.entity.Pago;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
+import java.util.List;
 import java.time.LocalDate;
 import java.util.Optional;
 @Repository
@@ -16,5 +16,5 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     );
     Optional<Pago> findTopByClienteIdOrderByPeriodoPagadoDesc(Long clienteId);
     Optional<Pago> findByClienteId(Long clienteId);
-
+    List<Pago> findTop12ByClienteIdOrderByFechaPagoDesc(Long clienteId);
 }

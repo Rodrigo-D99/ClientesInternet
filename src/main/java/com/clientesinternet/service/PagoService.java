@@ -1,6 +1,7 @@
 package com.clientesinternet.service;
 
 import com.clientesinternet.dto.req.PagoReq;
+import com.clientesinternet.dto.resp.PagoHistorialResp;
 import com.clientesinternet.dto.resp.PagoResp;
 import com.clientesinternet.entity.Cliente;
 import com.clientesinternet.entity.MedioPago;
@@ -10,10 +11,11 @@ import com.clientesinternet.repository.ClienteRepository;
 import com.clientesinternet.repository.PagoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-
+import java.util.List;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class PagoService {
@@ -95,5 +97,15 @@ public class PagoService {
         return Optional.empty();
     }
 
-
+    public List<PagoHistorialResp> obtenerHistorial(Long clienteId) {
+            return pagoRepo.findTop12ByClienteIdOrderByFechaPagoDesc(clienteId)
+                    .stream()
+                    .map(p -> new PagoHistorialResp(
+                            p.getFechaPago(),
+                            p.getMonto(),
+                            p.getMedioPago().name(),
+                            p.getCantidadMeses(),
+                            p.getNota()
+                    )).collect(Collectors.toList());
+        }
 }
