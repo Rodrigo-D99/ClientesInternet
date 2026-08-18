@@ -93,7 +93,7 @@ function renderTable(clientes) {
         const notaSegura = notaTexto.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const notaHTML = notaTexto ? `
             <div style="max-width: 180px; min-width: 120px;">
-                <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; font-size: 0.85rem; color: #555;">
+                <div style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; font-size: 0.85rem; color: #b1b1b1;">
                     ${notaTexto}
                 </div>
                 ${notaTexto.length > 40 ? `<a href="#" class="text-primary" style="font-size: 0.75rem; font-weight: bold; text-decoration: none;" onclick="alert('${notaSegura}'); return false;">Ver más...</a>` : ""}

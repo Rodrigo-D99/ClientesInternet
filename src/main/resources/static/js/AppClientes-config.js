@@ -12,6 +12,7 @@ async function abrirModalConfig() {
     
     await cargarPlanesEnConfig();
     await cargarPrecioFibraTV();
+    await cargarPrecioCableTV();
     configModal.show();
 }
 
@@ -91,7 +92,15 @@ async function cargarPrecioFibraTV() {
         console.log("Aún no hay precio de Fibra TV registrado."); 
     }
 }
-
+async function cargarPrecioCableTV() {
+    try {
+        const resp = await fetch('/api/configuracion/cabletv'); 
+        const config = await resp.json();
+        document.getElementById('inputPrecioCableTV').value = config.valor || 0;
+    } catch (e) { 
+        console.log("Aún no hay precio de Cable TV registrado."); 
+    }
+}
 // 6. Guardar TODA la configuración
 async function guardarConfiguracionGeneral() {
     const filas = document.querySelectorAll('.fila-plan');
@@ -134,7 +143,11 @@ async function guardarConfiguracionGeneral() {
         // B. Guardar Fibra TV
         const precioTV = document.getElementById('inputPrecioFibraTV').value;
         await fetch(`/api/configuracion/fibratv?precio=${precioTV}`, { method: 'POST' });
-
+        
+        // C. Guardar Cable TV
+        const precioCableTV = document.getElementById('inputPrecioCableTV').value;
+        await fetch(`/api/configuracion/cabletv?precio=${precioCableTV}`, { method: 'POST' });
+ 
         alert("¡Configuración guardada! Los próximos recibos usarán estos precios.");
         configModal.hide();
         

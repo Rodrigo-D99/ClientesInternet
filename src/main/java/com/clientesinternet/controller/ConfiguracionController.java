@@ -26,4 +26,16 @@ public class ConfiguracionController {
         return ResponseEntity.ok(configRepo.findById("PRECIO_FIBRA_TV")
             .orElse(new Configuracion("PRECIO_FIBRA_TV", 0.0)));
     }
+
+    // Endpoint para guardar el precio de TV por Cable
+    @PostMapping("/cabletv")
+    public ResponseEntity<Configuracion> guardarPrecioCableTv(@RequestParam Double precio) {
+        Configuracion config = new Configuracion("PRECIO_CABLE_TV", precio);
+        return ResponseEntity.ok(configRepo.save(config));
+    }
+    @GetMapping("/cabletv")
+    public ResponseEntity<Configuracion> obtenerPrecioCableTv() {
+        return ResponseEntity.ok(configRepo.findById("PRECIO_CABLE_TV")
+            .orElse(new Configuracion("PRECIO_CABLE_TV", 0.0)));
+    }
 }
