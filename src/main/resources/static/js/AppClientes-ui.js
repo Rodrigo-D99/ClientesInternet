@@ -102,23 +102,20 @@ function renderTable(clientes) {
         // Crear fila
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>
+            <td class="text-wrap" style="max-width: 200px;">
                 ${c.nombre}
                 <span class="badge ms-2"
                       style="background-color: ${c.mesesAdeudados > 0 ? 'red' : 'green'};
                              width:16px; height:16px; display:inline-block; border-radius:50%;"></span>
             </td>
             <td>${c.telefono || ''}</td>
-            <td>${c.direccion}</td>
-            <td>${c.email || ''}</td> <!-- NUEVA CELDA DE EMAIL -->
+            <td class="text-wrap" style="max-width: 200px;">${c.direccion}</td>
+            <td>${c.email || ''}</td>
             <td>${c.mesesAdeudados}</td>
             <td>${c.mesesPagados || 0}</td>
             ${fibraTVCell}
             ${TVCell}
-            <td>${c.medioPago || ''}</td>
-            <td>${dni}</td>
             <td>${estadoInstalacion}${montoMostrar}</td>
-            <td>${c.montoUltimoPago || ""} - ${notaHTML || ""}</td>
             <td>${c.fechaUltimoPago || ''}</td>
             <td>${c.cantidadMB || ''}</td>
             <td>
@@ -126,11 +123,14 @@ function renderTable(clientes) {
                     <div class="mb-1">
                         <button class="btn btn-sm btn-success" onclick="abrirModalPago(${c.id})"> Cobrar</button>
                         <button class="btn btn-sm btn-warning" onclick="editarCliente(${c.id})"> Editar</button>
-                        <button class="btn btn-sm btn-info" onclick="verHistorialPagos(${c.id})"> Historial</button>
+                        <button class="btn btn-sm btn-info text-white" onclick='verInfoCliente(${JSON.stringify(c).replace(/"/g, "&quot;")})'>Info</button>
+                    </div>
+                    <div class="mb-1">
+                        <button class="btn btn-sm btn-info text-white" onclick='abrirModalOpcionesRecibo(${JSON.stringify(c).replace(/"/g, "&quot;")})'>Recibo</button>
+                        <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})"> Eliminar</button>
                     </div>
                     <div>
-                        <button class="btn btn-sm btn-info" onclick="generarReciboIndividual(${c.id})"> Recibo</button>
-                        <button class="btn btn-sm btn-danger" onclick="eliminarCliente(${c.id})"> Eliminar</button>
+                        <button class="btn btn-sm btn-secondary" onclick="verHistorialPagos(${c.id})"> Historial</button>
                         ${c.mesesAdeudados > 0 && c.telefono ? `
                         <button class="btn btn-sm btn-success" onclick='avisarDeuda(${JSON.stringify(c.nombre)}, ${JSON.stringify(c.telefono)}, ${c.mesesAdeudados})'>WhatsApp</button>
                         ` : ""}

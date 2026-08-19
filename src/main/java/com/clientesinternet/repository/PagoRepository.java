@@ -16,5 +16,6 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     );
     Optional<Pago> findTopByClienteIdOrderByPeriodoPagadoDesc(Long clienteId);
     Optional<Pago> findByClienteId(Long clienteId);
-    List<Pago> findTop12ByClienteIdOrderByFechaPagoDesc(Long clienteId);
+    List<Pago> findByClienteIdOrderByFechaPagoDescIdDesc(Long clienteId);
+    List<Pago> findByFechaPago(LocalDate fecha);
 }

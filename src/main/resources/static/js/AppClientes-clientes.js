@@ -124,7 +124,7 @@ async function registrarPago(e) {
         const pagoModalEl = bootstrap.Modal.getInstance(document.getElementById('pagoModal'));
         pagoModalEl.hide();
         fetchClientes(currentPage);
-        
+        actualizarEstadisticasHoy();
     } catch (error) {
         alert("Error al registrar el pago: " + error.message);
     }
@@ -263,39 +263,108 @@ function validarDniRecomendado() {
 }
 
 // ============================================================
-// HISTORIAL DE PAGOS
+// HISTORIAL DE PAGOS (CON EDICIÓN EN LA MISMA TABLA)
 // ============================================================
 async function verHistorialPagos(clienteId) {
     try {
         const resp = await fetch(`/pagos/${clienteId}/historial`);
         if (!resp.ok) throw new Error("Error al obtener el historial de pagos");
         
-        const historial = await resp.json();
+        let historial = await resp.json();
         const tbody = document.getElementById("historialTableBody");
-        tbody.innerHTML = ""; // Limpiamos la tabla
+        tbody.innerHTML = ""; 
 
         if (historial.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='5' class='text-center text-muted'>No hay pagos registrados para este cliente.</td></tr>";
-        } else {
-            historial.forEach(p => {
-                // Formatear la fecha (de AAAA-MM-DD a DD/MM/AAAA)
-                const fechaFormat = p.fechaPago ? p.fechaPago.split('-').reverse().join('/') : '-';
-                
-                tbody.innerHTML += `
-                    <tr>
-                        <td><strong>${fechaFormat}</strong></td>
-                        <td class="text-success fw-bold">$${p.monto}</td>
-                        <td><span class="badge bg-secondary">${p.medioPago}</span></td>
-                        <td>${p.cantidadMeses}</td>
-                        <td class="text-start">${p.nota || '-'}</td>
-                    </tr>
-                `;
-            });
+            tbody.innerHTML = "<tr><td colspan='7' class='text-center text-muted'>No hay pagos registrados para este cliente.</td></tr>";
+            new bootstrap.Modal(document.getElementById('historialModal')).show();
+            return;
         }
+
+        // Cálculo de fechas acumulativas
+        historial.reverse();
+        let fechaCobertura = null;
+
+        historial.forEach(p => {
+            const fechaPagoObj = new Date(p.fechaPago + "T00:00:00");
+            if (!fechaCobertura || fechaPagoObj > fechaCobertura) {
+                fechaCobertura = new Date(fechaPagoObj);
+            }
+            fechaCobertura.setMonth(fechaCobertura.getMonth() + p.cantidadMeses);
+            const mes = String(fechaCobertura.getMonth() + 1).padStart(2, '0');
+            const anio = fechaCobertura.getFullYear();
+            p.fechaHastaCalculada = `${mes}/${anio}`;
+        });
+
+        historial.reverse(); // El más reciente arriba
+
+        // Dibujar filas
+        historial.forEach(p => {
+            const fechaFormat = p.fechaPago ? p.fechaPago.split('-').reverse().join('/') : '-';
+            const notaSegura = p.nota ? p.nota.replace(/'/g, "\\'") : '';
+            const idPago = p.id; 
+
+            tbody.innerHTML += `
+                <tr id="pago-row-${idPago}">
+                    <td><strong>${fechaFormat}</strong></td>
+                    <td class="col-monto text-success fw-bold">$${p.monto}</td>
+                    <td class="col-medio"><span class="badge bg-secondary">${p.medioPago}</span></td>
+                    <td class="col-meses">${p.cantidadMeses}</td>
+                    <td><span class="badge bg-primary text-white">${p.fechaHastaCalculada}</span></td>
+                    <td class="col-nota text-start">${p.nota || '-'}</td>
+                    <td class="col-acciones">
+                        <button class="btn btn-sm btn-outline-primary" onclick="activarEdicionFila(${idPago}, ${p.monto}, '${p.medioPago}', ${p.cantidadMeses}, '${notaSegura}')">✏️</button>
+                    </td>
+                </tr>
+            `;
+        });
         
-        // Mostrar el modal
         new bootstrap.Modal(document.getElementById('historialModal')).show();
         
+    } catch (error) {
+        alert(error.message);
+    }
+}
+// Activa las cajitas de texto en la fila seleccionada
+function activarEdicionFila(id, monto, medio, meses, nota) {
+    const row = document.getElementById(`pago-row-${id}`);
+    
+    // Convertimos las celdas en campos editables
+    row.querySelector('.col-monto').innerHTML = `<input type="number" id="edit-monto-${id}" class="form-control form-control-sm" value="${monto}" min="0">`;
+    
+    row.querySelector('.col-medio').innerHTML = `
+        <select id="edit-medio-${id}" class="form-select form-select-sm">
+            <option value="EFECTIVO" ${medio === 'EFECTIVO' ? 'selected' : ''}>EFECTIVO</option>
+            <option value="TRANSFERENCIA" ${medio === 'TRANSFERENCIA' ? 'selected' : ''}>TRANSFERENCIA</option>
+            <option value="TARJETA" ${medio === 'TARJETA' ? 'selected' : ''}>TARJETA</option>
+        </select>`;
+        
+    row.querySelector('.col-meses').innerHTML = `<input type="number" id="edit-meses-${id}" class="form-control form-control-sm" value="${meses}" min="1">`;
+    row.querySelector('.col-nota').innerHTML = `<input type="text" id="edit-nota-${id}" class="form-control form-control-sm" value="${nota}">`;
+    
+    // Cambiamos el botón ✏️ por un botón de Guardar ✔️
+    row.querySelector('.col-acciones').innerHTML = `<button class="btn btn-sm btn-success" onclick="guardarEdicionFila(${id})">✔️</button>`;
+}
+
+// Envía los cambios al backend
+async function guardarEdicionFila(id) {
+    const data = {
+        monto: parseFloat(document.getElementById(`edit-monto-${id}`).value),
+        medioPago: document.getElementById(`edit-medio-${id}`).value,
+        cantidadMeses: parseInt(document.getElementById(`edit-meses-${id}`).value),
+        nota: document.getElementById(`edit-nota-${id}`).value
+    };
+
+    try {
+        const resp = await fetch(`/pagos/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (!resp.ok) throw new Error("Error al modificar el pago" + id);
+
+        location.reload(); // Recargamos para actualizar las fechas calculadas y totales
+
     } catch (error) {
         alert(error.message);
     }
@@ -355,3 +424,19 @@ async function actualizarSelectPlanes() {
         }
     });
 }
+// ============================================================
+// MOSTRAR DETALLES COMPLETOS EN EL MODAL DE INFO
+// ============================================================
+function verInfoCliente(cliente) {
+    // Cargamos los datos recibidos dentro de las etiquetas del modal
+    document.getElementById("infoNombre").innerText = cliente.nombre || 'Sin Nombre';
+    document.getElementById("infoDni").innerText = cliente.dni || 'No registrado';
+    document.getElementById("infoMedioPago").innerText = cliente.medioPago || 'Sin medio registrado';
+    document.getElementById("infoMonto").innerText = cliente.montoUltimoPago ? `$ ${cliente.montoUltimoPago}` : '-';
+    document.getElementById("infoNota").innerText = cliente.nota || 'Sin notas adicionales registradas.';
+
+    // Abrimos el modal
+    const modal = new bootstrap.Modal(document.getElementById('infoClienteModal'));
+    modal.show();
+}
+

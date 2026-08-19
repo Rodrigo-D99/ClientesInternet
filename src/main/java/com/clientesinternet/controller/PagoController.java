@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.clientesinternet.service.PagoService;
+import java.util.Map;
 import java.util.List;
 
 @RestController
@@ -37,5 +38,16 @@ public class PagoController {
     @GetMapping("/{clienteId}/historial")
     public ResponseEntity<List<PagoHistorialResp>> verHistorial(@PathVariable Long clienteId) {
         return ResponseEntity.ok(service.obtenerHistorial(clienteId));
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> editarPago(@PathVariable Long id, @RequestBody PagoReq req) {
+        service.editarPago(id, req);
+        return ResponseEntity.ok().build();
+    }
+   @GetMapping("/estadisticas/hoy")
+    public ResponseEntity<Map<String, Object>> obtenerEstadisticasHoy() {
+        // El controlador delega toda la responsabilidad al servicio
+        Map<String, Object> estadisticas = service.obtenerEstadisticasHoy();
+        return ResponseEntity.ok(estadisticas);
     }
 }

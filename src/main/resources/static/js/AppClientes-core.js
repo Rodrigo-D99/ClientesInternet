@@ -23,26 +23,44 @@ document.addEventListener("DOMContentLoaded", () => {
     const filterName = document.getElementById("filterName");
     const filterDeudores = document.getElementById("filterDeudores");
 
-    // ============================================================
-    // EXPORTAR EXCEL
-    // ============================================================
-    btnExport.addEventListener("click", () => {
-        const name = filterName.value;
-        const deudores = filterDeudores.value;
+// ============================================================
+// EXPORTAR EXCEL
+// ============================================================
+btnExport.addEventListener("click", () => {
+    const name = filterName.value;
+    const deudores = filterDeudores.value;
 
-        const url = new URL('/clientes/export', window.location.origin);
-        if (name) url.searchParams.set('nombre', name);
-        if (deudores) url.searchParams.set('deudores', deudores);
+    const url = new URL('/clientes/export', window.location.origin);
+    if (name) url.searchParams.set('nombre', name);
+    if (deudores) url.searchParams.set('deudores', deudores);
 
-        fetch(url)
-            .then(resp => resp.blob())
-            .then(blob => {
-                const link = document.createElement('a');
-                link.href = window.URL.createObjectURL(blob);
-                link.download = 'clientes.xlsx';
-                link.click();
-            });
-    });
+    fetch(url)
+        .then(resp => {
+            if (!resp.ok) throw new Error("Error al exportar el archivo");
+            return resp.blob();
+        })
+        .then(blob => {
+            // 1. Creamos la URL temporal
+            const urlBlob = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = urlBlob;
+            link.download = 'clientes.xlsx';
+            
+            // 2. AGREGAR AL DOM: Engañamos al navegador poniendo el botón invisible en la página
+            document.body.appendChild(link);
+            
+            // 3. Simulamos el clic
+            link.click();
+            
+            // 4. LIMPIEZA: Borramos el botón invisible y liberamos la memoria
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(urlBlob);
+        })
+        .catch(error => {
+            console.error("Hubo un problema con la exportación:", error);
+            alert("No se pudo descargar el archivo Excel.");
+        });
+});
 
     // ============================================================
     // IMPORTAR EXCEL
@@ -74,20 +92,76 @@ document.addEventListener("DOMContentLoaded", () => {
     // ============================================================
     // CREAR RECIBO
     // ============================================================
-    const btnGenerarRecibos = document.getElementById('btnGenerarRecibos');
-    
-    if(btnGenerarRecibos) {
-        btnGenerarRecibos.addEventListener('click', () => {
-            // Esto le indicará al navegador que abra una pestaña nueva apuntando al endpoint de Spring Boot
-            window.open('/api/recibos/pdf-masivo', '_blank');
-        });
-    }
-    function generarReciboIndividual(id) {
-    if (!id) return;
-    window.open(`/api/recibos/pdf-individual/${id}`, '_blank');
+    let clienteReciboActual = null;
+
+    function abrirModalOpcionesRecibo(cliente) {
+        clienteReciboActual = cliente;
+        
+        // Título del modal
+        document.getElementById('nombreReciboCliente').innerText = `Cliente: ${cliente.nombre}`;
+        
+        const container = document.getElementById('botonesReciboContainer');
+        container.innerHTML = ''; // Limpiamos botones anteriores
+
+        // Siempre mostramos el botón de descargar individual
+        container.innerHTML += `<button class="btn btn-primary" onclick="accionRecibo('DESCARGAR')"> Descargar PDF</button>`;
+
+        const tieneTel = cliente.telefono && cliente.telefono.trim() !== "";
+        const tieneEmail = cliente.email && cliente.email.trim() !== "";
+
+        if (tieneTel) {
+            container.innerHTML += `<button class="btn btn-success" onclick="accionRecibo('WHATSAPP')"> Enviar por WhatsApp</button>`;
+        }
+        if (tieneEmail) {
+            container.innerHTML += `<button class="btn btn-secondary" onclick="accionRecibo('EMAIL')"> Enviar por Email</button>`;
+        }
+        if (tieneTel && tieneEmail) {
+            container.innerHTML += `<button class="btn btn-dark" onclick="accionRecibo('AMBOS')"> Enviar a Ambos</button>`;
+        }
+
+        new bootstrap.Modal(document.getElementById('opcionesReciboModal')).show();
     }
 
-    window.generarReciboIndividual = generarReciboIndividual;
+    async function accionRecibo(tipo) {
+        const id = clienteReciboActual.id;
+        const mensajeWpp = `Hola ${clienteReciboActual.nombre} te mando el recibo del pago de internet`;
+
+        switch(tipo) {
+            case 'DESCARGAR':
+                window.open(`/api/recibos/pdf-individual/${id}`, '_blank');
+                break;
+                
+            case 'WHATSAPP':
+                alert("WhatsApp Web no permite adjuntar archivos automáticamente. Se descargará tu recibo y se abrirá el chat. ¡Recuerda adjuntar el archivo manualmente!");
+                window.open(`/api/recibos/pdf-individual/${id}`, '_blank'); // Descarga el archivo
+                abrirWhatsapp(clienteReciboActual.telefono, mensajeWpp); 
+                break;
+                
+            case 'EMAIL':
+                await solicitarEnvioEmail(id);
+                break;
+                
+            case 'AMBOS':
+                alert("Se enviará el correo. A continuación se abrirá WhatsApp y se descargará el recibo para que lo adjuntes.");
+                await solicitarEnvioEmail(id);
+                window.open(`/api/recibos/pdf-individual/${id}`, '_blank');
+                abrirWhatsapp(clienteReciboActual.telefono, mensajeWpp);
+                break;
+        }
+    }
+
+    async function solicitarEnvioEmail(id) {
+        try {
+            const resp = await fetch(`/api/recibos/enviar-email/${id}`, { method: 'POST' });
+            if (resp.ok) {
+                alert(" Correo enviado exitosamente");
+            } else {
+                throw new Error("Error del servidor");
+            }
+        } catch (error) {
+            alert(" No se pudo enviar el correo. Asegúrate de tener el backend configurado.");
+        }
+    }
 
     // ============================================================
     // FILTROS
@@ -192,3 +266,23 @@ function cargarPreferenciaTamaño() {
         localStorage.setItem('pageSizePreference', "50");
     }
 }
+// ============================================================
+// ESTADÍSTICAS DEL DÍA
+// ============================================================
+async function actualizarEstadisticasHoy() {
+    try {
+        const resp = await fetch('/pagos/estadisticas/hoy'); // Asegúrate de que la ruta coincida con tu backend
+        if (resp.ok) {
+            const data = await resp.json();
+            document.getElementById('countCobrosHoy').innerText = data.cantidadCobros || 0;
+            document.getElementById('montoCobradoHoy').innerText = `$${data.totalRecaudado || 0}`;
+        }
+    } catch (error) {
+        console.error("Error al cargar las estadísticas de hoy:", error);
+    }
+}
+
+// Llama a esta función cuando la página cargue por primera vez
+document.addEventListener("DOMContentLoaded", () => {
+    actualizarEstadisticasHoy();
+});

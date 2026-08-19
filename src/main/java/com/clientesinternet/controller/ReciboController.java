@@ -44,4 +44,18 @@ public class ReciboController {
         headers.setCacheControl("must-revalidate, post-check=0, pre-check=0");
         return new ResponseEntity<>(content, headers, HttpStatus.OK);
     }
+    @PostMapping("/enviar-email/{id}")
+    public ResponseEntity<String> enviarReciboPorEmail(@PathVariable Long id) {
+        try {
+            // 1. Generar el PDF usando tu servicio existente
+            byte[] pdfContent = pdfService.generarPdfIndividual(id);
+            
+            // 2. Aquí llamarías a un nuevo EmailService (que debes crear)
+            // emailService.enviarReciboConAdjunto(cliente.getEmail(), pdfContent);
+            
+            return ResponseEntity.ok("Correo enviado con éxito");
+        } catch (Exception e) {
+            return new ResponseEntity<>("Error al enviar correo", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

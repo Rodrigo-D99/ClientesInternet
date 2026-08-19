@@ -11,7 +11,10 @@ import com.clientesinternet.repository.ClienteRepository;
 import com.clientesinternet.repository.PagoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Optional;
@@ -82,6 +85,39 @@ public class PagoService {
         );
     }
     @Transactional
+    public void editarPago(Long id, PagoReq req) {
+        // 1. Buscamos el pago existente
+        Pago pago = pagoRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pago no encontrado con id: " + id));
+
+        // 2. Calculamos la diferencia de meses si se modificó la cantidad
+        if (req.getCantidadMeses() != null && req.getCantidadMeses() > 0) {
+            int mesesAnteriores = pago.getCantidadMeses() != null ? pago.getCantidadMeses() : 0;
+            int mesesNuevos = req.getCantidadMeses();
+            int diferenciaMeses = mesesNuevos - mesesAnteriores;
+
+            // Si hubo cambios en la cantidad de meses, actualizamos el acumulado del cliente
+            if (diferenciaMeses != 0) {
+                Cliente cliente = pago.getCliente();
+                int mesesPagadosActuales = cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0;
+                
+                // Actualizamos y guardamos el cliente
+                cliente.setMesesPagados(mesesPagadosActuales + diferenciaMeses);
+                clienteRepo.save(cliente);
+            }
+
+            pago.setCantidadMeses(mesesNuevos);
+        }
+
+        pago.setMonto(req.getMonto());
+        if (req.getMedioPago() != null) {
+            pago.setMedioPago(req.getMedioPago());
+        }
+        pago.setNota(req.getNota());
+
+        pagoRepo.save(pago);
+    }
+    @Transactional
     public void actualizarNota(Long clienteId, String nota) {
         Pago pago = pagoRepo.findByClienteId(clienteId)
                 .orElseThrow(() -> new RuntimeException("Pago no encontrado"));
@@ -98,14 +134,34 @@ public class PagoService {
     }
 
     public List<PagoHistorialResp> obtenerHistorial(Long clienteId) {
-            return pagoRepo.findTop12ByClienteIdOrderByFechaPagoDesc(clienteId)
-                    .stream()
-                    .map(p -> new PagoHistorialResp(
-                            p.getFechaPago(),
-                            p.getMonto(),
-                            p.getMedioPago().name(),
-                            p.getCantidadMeses(),
-                            p.getNota()
-                    )).collect(Collectors.toList());
-        }
+        return pagoRepo.findByClienteIdOrderByFechaPagoDescIdDesc(clienteId)
+                .stream()
+                .map(p -> new PagoHistorialResp(
+                    p.getId(),
+                    p.getFechaPago(),
+                    p.getMonto(),
+                    p.getMedioPago().name(),
+                    p.getCantidadMeses(),
+                    p.getNota()
+                )).collect(Collectors.toList());
+    }
+    public Map<String, Object> obtenerEstadisticasHoy() {
+        LocalDate hoy = LocalDate.now();
+        
+        // Obtenemos todos los pagos registrados con la fecha de hoy
+        List<Pago> pagosHoy = pagoRepo.findByFechaPago(hoy);
+
+        // Calculamos la cantidad y el monto total
+        long cantidadCobros = pagosHoy.size();
+        BigDecimal totalRecaudado = pagosHoy.stream()
+                                            .map(Pago::getMonto)
+                                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Empaquetamos los datos para enviarlos
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("cantidadCobros", cantidadCobros);
+        stats.put("totalRecaudado", totalRecaudado);
+
+        return stats;
+    }
 }

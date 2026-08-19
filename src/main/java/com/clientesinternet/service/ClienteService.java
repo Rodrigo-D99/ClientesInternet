@@ -17,7 +17,6 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
@@ -178,18 +177,7 @@ public class ClienteService {
         return castToResponse(cliente);
     }
 
-    private int calcularMesesAdeudados(YearMonth ultimoPeriodoPagado) {
-        YearMonth actual = YearMonth.now();
-
-        if (ultimoPeriodoPagado == null) {
-            return 1; // nunca pagó
-        }
-
-        return (int) ChronoUnit.MONTHS.between(
-                ultimoPeriodoPagado.plusMonths(1),
-                actual.plusMonths(1)
-        );
-    }
+    @Transactional
     public List<ClienteResp> buscarClientesExcel(Boolean soloDeudores, String nombre) {
 
         Sort sortObj = Sort.by(Sort.Order.asc("nombre").ignoreCase());
@@ -211,15 +199,20 @@ public class ClienteService {
     private ClienteResp castToResponse(Cliente cliente) {
 
         // 1. Obtener el último pago
-        Pago ultimoPago = pagoRepo
-                .findTopByClienteIdOrderByPeriodoPagadoDesc(cliente.getId())
-                .orElse(null);
+        List<Pago> pagos = pagoRepo.findByClienteIdOrderByFechaPagoDescIdDesc(cliente.getId());
+        Pago ultimoPago = pagos.isEmpty() ? null : pagos.get(0);
 
         // 2. Calcular deuda (si no hay pago, se calcula desde 'null')
-        int mesesAdeudados = (ultimoPago != null)
-                ? calcularMesesAdeudados(ultimoPago.getPeriodoPagado())
-                : calcularMesesAdeudados(null);
-
+        int mesesAdeudados = 1;
+        if (ultimoPago != null) {
+            YearMonth mesActual = YearMonth.now();
+            YearMonth mesUltimoPago = YearMonth.from(ultimoPago.getFechaPago());
+            
+            // Si el último pago es de este mes o de un mes futuro, no debe nada
+            if (!mesUltimoPago.isBefore(mesActual)) {
+                mesesAdeudados = 0;
+            }
+        }
         boolean deuda = mesesAdeudados > 0;
 
         // 3. Lógica inteligente de DNI

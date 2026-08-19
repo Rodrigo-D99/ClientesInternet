@@ -1,6 +1,8 @@
 package com.clientesinternet.service;
 
 import com.clientesinternet.dto.resp.ClienteResp;
+import com.clientesinternet.entity.Pago;
+import com.clientesinternet.repository.PagoRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,12 +10,17 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class ClienteExportExcelService {
 
     @Autowired
     private ClienteService clienteService;
+
+    // Inyectamos el repositorio de pagos para buscar el historial
+    @Autowired
+    private PagoRepository pagoRepo;
 
     public byte[] generarExcel(Boolean soloDeudores, String nombre) {
 
@@ -25,35 +32,55 @@ public class ClienteExportExcelService {
             Sheet sheet = workbook.createSheet("Clientes");
 
             Row header = sheet.createRow(0);
-            header.createCell(0).setCellValue("Nombre");
-            header.createCell(1).setCellValue("Teléfono");
-            header.createCell(2).setCellValue("Dirección");
-            header.createCell(3).setCellValue("Cantidad MB");
-            header.createCell(4).setCellValue("Meses pagados");
-            header.createCell(5).setCellValue("Fibra TV");
-            header.createCell(6).setCellValue("Usuario Fibra TV");
-            header.createCell(7).setCellValue("Medio pago");
-            header.createCell(8).setCellValue("DNI");
-            header.createCell(9).setCellValue("Nota");
-            header.createCell(10).setCellValue("Fecha último pago");
-            header.createCell(11).setCellValue("Monto último pago");
-            header.createCell(12).setCellValue("Meses adeudados");
+            int i = 0;
+            header.createCell(i++).setCellValue("Nombre");
+            header.createCell(i++).setCellValue("Teléfono");
+            header.createCell(i++).setCellValue("Dirección");
+            header.createCell(i++).setCellValue("Email");
+            header.createCell(i++).setCellValue("Cantidad MB");
+            header.createCell(i++).setCellValue("Fibra TV");
+            header.createCell(i++).setCellValue("Usuario Fibra TV");
+            header.createCell(i++).setCellValue("Meses pagados");
+            header.createCell(i++).setCellValue("Medio pago");
+            header.createCell(i++).setCellValue("DNI");
+            header.createCell(i++).setCellValue("Nota");
+            header.createCell(i++).setCellValue("Fecha último pago");
+            header.createCell(i++).setCellValue("Monto último pago");
+            header.createCell(i++).setCellValue("Meses adeudados");
+            // NUEVA COLUMNA
+            header.createCell(i++).setCellValue("Historial Pagos");
+
             int row = 1;
             for (ClienteResp c : clientes) {
+                i = 0;
                 Row r = sheet.createRow(row++);
-                r.createCell(0).setCellValue(c.getNombre());
-                r.createCell(1).setCellValue(c.getTelefono() != null ? c.getTelefono() : "");
-                r.createCell(2).setCellValue(c.getDireccion());
-                r.createCell(3).setCellValue(c.getCantidadMB() != null ? c.getCantidadMB() : 0);
-                r.createCell(4).setCellValue(c.getMesesPagados());
-                r.createCell(5).setCellValue(c.isTieneFibraTV() ? "Sí" : "No");
-                r.createCell(6).setCellValue(c.getUsuarioFibraTV() != null ? c.getUsuarioFibraTV() : "");
-                r.createCell(7).setCellValue(c.getMedioPago() != null ? c.getMedioPago() : "");
-                r.createCell(8).setCellValue(c.getDni() != null ? c.getDni() : "");
-                r.createCell(9).setCellValue(c.getNota() != null ? c.getNota() : "");
-                r.createCell(10).setCellValue(c.getFechaUltimoPago() != null ? c.getFechaUltimoPago().toString() : "");
-                r.createCell(11).setCellValue(c.getMontoUltimoPago() != null ? c.getMontoUltimoPago().doubleValue() : 0.0);
-                r.createCell(12).setCellValue(c.getMesesAdeudados());
+                r.createCell(i++).setCellValue(c.getNombre());
+                r.createCell(i++).setCellValue(c.getTelefono() != null ? c.getTelefono() : "");
+                r.createCell(i++).setCellValue(c.getDireccion());
+                r.createCell(i++).setCellValue(c.getEmail() != null ? c.getEmail() : "");
+                r.createCell(i++).setCellValue(c.getCantidadMB() != null ? c.getCantidadMB() : 0);
+                r.createCell(i++).setCellValue(c.isTieneFibraTV() ? "Sí" : "No");
+                r.createCell(i++).setCellValue(c.getUsuarioFibraTV() != null ? c.getUsuarioFibraTV() : "");
+                r.createCell(i++).setCellValue(c.getMesesPagados());
+                r.createCell(i++).setCellValue(c.getMedioPago() != null ? c.getMedioPago() : "");
+                r.createCell(i++).setCellValue(c.getDni() != null ? c.getDni() : "");
+                r.createCell(i++).setCellValue(c.getNota() != null ? c.getNota() : "");
+                r.createCell(i++).setCellValue(c.getFechaUltimoPago() != null ? c.getFechaUltimoPago().toString() : "");
+                r.createCell(i++).setCellValue(c.getMontoUltimoPago() != null ? c.getMontoUltimoPago().doubleValue() : 0.0);
+                r.createCell(i++).setCellValue(c.getMesesAdeudados());
+
+                // LÓGICA DEL HISTORIAL: Buscamos y concatenamos
+                List<Pago> pagos = pagoRepo.findByClienteIdOrderByFechaPagoDescIdDesc(c.getId());
+                
+                String historialStr = pagos.stream().map(p -> 
+                    p.getFechaPago() + ";" + 
+                    p.getMonto() + ";" + 
+                    p.getMedioPago().name() + ";" + 
+                    p.getCantidadMeses() + ";" + 
+                    (p.getNota() != null ? p.getNota() : "")
+                ).collect(Collectors.joining("|"));
+
+                r.createCell(i++).setCellValue(historialStr);
             }
 
             workbook.write(out);
