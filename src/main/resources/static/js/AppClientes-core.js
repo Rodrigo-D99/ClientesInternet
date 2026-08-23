@@ -92,77 +92,167 @@ btnExport.addEventListener("click", () => {
     // ============================================================
     // CREAR RECIBO
     // ============================================================
-    let clienteReciboActual = null;
+    // Variable global para guardar los datos del cliente seleccionado
+let clienteReciboActual = null;
 
-    function abrirModalOpcionesRecibo(cliente) {
-        clienteReciboActual = cliente;
-        
-        // Título del modal
-        document.getElementById('nombreReciboCliente').innerText = `Cliente: ${cliente.nombre}`;
-        
-        const container = document.getElementById('botonesReciboContainer');
-        container.innerHTML = ''; // Limpiamos botones anteriores
+// Hacemos la funcion global agregando "window."
+window.abrirModalOpcionesRecibo = function(cliente) {
+    clienteReciboActual = cliente;
+    
+    document.getElementById('nombreReciboCliente').innerText = 'Cliente: ' + cliente.nombre;
+    
+    const container = document.getElementById('botonesReciboContainer');
+    container.innerHTML = ''; 
 
-        // Siempre mostramos el botón de descargar individual
-        container.innerHTML += `<button class="btn btn-primary" onclick="accionRecibo('DESCARGAR')"> Descargar PDF</button>`;
+    container.innerHTML += '<button class="btn btn-primary mb-2" onclick="accionRecibo(\'DESCARGAR\')">Descargar PDF</button>';
 
-        const tieneTel = cliente.telefono && cliente.telefono.trim() !== "";
-        const tieneEmail = cliente.email && cliente.email.trim() !== "";
+    const tieneTel = cliente.telefono && cliente.telefono.trim() !== "";
+    const tieneEmail = cliente.email && cliente.email.trim() !== "";
 
-        if (tieneTel) {
-            container.innerHTML += `<button class="btn btn-success" onclick="accionRecibo('WHATSAPP')"> Enviar por WhatsApp</button>`;
-        }
-        if (tieneEmail) {
-            container.innerHTML += `<button class="btn btn-secondary" onclick="accionRecibo('EMAIL')"> Enviar por Email</button>`;
-        }
-        if (tieneTel && tieneEmail) {
-            container.innerHTML += `<button class="btn btn-dark" onclick="accionRecibo('AMBOS')"> Enviar a Ambos</button>`;
-        }
-
-        new bootstrap.Modal(document.getElementById('opcionesReciboModal')).show();
+    if (tieneTel) {
+        container.innerHTML += '<button class="btn btn-success mb-2" onclick="accionRecibo(\'WHATSAPP\')">Enviar por WhatsApp</button>';
+    }
+    if (tieneEmail) {
+        container.innerHTML += '<button class="btn btn-secondary mb-2" onclick="accionRecibo(\'EMAIL\')">Enviar por Email</button>';
+    }
+    if (tieneTel && tieneEmail) {
+        container.innerHTML += '<button class="btn btn-dark mb-2" onclick="accionRecibo(\'AMBOS\')">Enviar a Ambos</button>';
     }
 
-    async function accionRecibo(tipo) {
-        const id = clienteReciboActual.id;
-        const mensajeWpp = `Hola ${clienteReciboActual.nombre} te mando el recibo del pago de internet`;
+    new bootstrap.Modal(document.getElementById('opcionesReciboModal')).show();
+};
+// Función para construir el mensaje de WhatsApp usando la estructura real de Cliente y PlanInternet
+function generarTextoRecibo(cliente, esAmbos) {
+    const hoy = new Date();
+    const fechaFormateada = hoy.toLocaleDateString('es-AR');
 
-        switch(tipo) {
-            case 'DESCARGAR':
-                window.open(`/api/recibos/pdf-individual/${id}`, '_blank');
-                break;
-                
-            case 'WHATSAPP':
-                alert("WhatsApp Web no permite adjuntar archivos automáticamente. Se descargará tu recibo y se abrirá el chat. ¡Recuerda adjuntar el archivo manualmente!");
-                window.open(`/api/recibos/pdf-individual/${id}`, '_blank'); // Descarga el archivo
-                abrirWhatsapp(clienteReciboActual.telefono, mensajeWpp); 
-                break;
-                
-            case 'EMAIL':
-                await solicitarEnvioEmail(id);
-                break;
-                
-            case 'AMBOS':
-                alert("Se enviará el correo. A continuación se abrirá WhatsApp y se descargará el recibo para que lo adjuntes.");
-                await solicitarEnvioEmail(id);
-                window.open(`/api/recibos/pdf-individual/${id}`, '_blank');
-                abrirWhatsapp(clienteReciboActual.telefono, mensajeWpp);
-                break;
-        }
+    // 1. Extracción de datos del Plan anidado
+    const plan = cliente.plan || {};
+    const nombrePlan = plan.cantidadMB ? `Internet ${plan.cantidadMB}MB` : 'Servicio de Internet';
+    
+    // Obtención de precios desde la entidad PlanInternet
+    const efecVal = plan.precioEfectivo || 0;
+    const tranfVal = plan.precioTransferencia || 0;
+
+    const efec = Number(efecVal).toFixed(2);
+    const tranf = Number(tranfVal).toFixed(2);
+
+    // 2. Extracción de datos de la entidad Cliente
+    const direccion = cliente.direccion || 'N/A';
+    
+    // Mes de pago actual (YYYY-MM)
+    const mesActual = hoy.toISOString().slice(0, 7);
+    const pagoMes = cliente.pagoMes || mesActual;
+
+    // Cable TV e Instalación
+    const tieneTv = cliente.tieneTV ? "Sí" : "No";
+    const instalacionVal = cliente.costoInstalacion || 0;
+    const instalacion = Number(instalacionVal).toFixed(2);
+
+    // 3. Construcción del texto formateado para WhatsApp
+    let msg = `Hola! te enviamos el \n*RECIBO DE PAGO - ${fechaFormateada}*\n`;
+    msg += `*Cliente:* ${cliente.nombre} | *Dir:* ${direccion} | *Pago mes:* ${pagoMes}\n`;
+    msg += `*Tiene TV por cable:* ${tieneTv}\n`;
+
+
+    // Nota adicional si se selecciona la opción AMBOS
+    if (esAmbos) {
+        msg += `\n\n También te enviamos el comprobante en formato PDF a tu correo electrónico.`;
     }
 
-    async function solicitarEnvioEmail(id) {
-        try {
-            const resp = await fetch(`/api/recibos/enviar-email/${id}`, { method: 'POST' });
-            if (resp.ok) {
-                alert(" Correo enviado exitosamente");
-            } else {
-                throw new Error("Error del servidor");
-            }
-        } catch (error) {
-            alert(" No se pudo enviar el correo. Asegúrate de tener el backend configurado.");
+    msg += `\n\n¡Muchas gracias por pagar este mes!`;
+
+    return msg;
+}
+
+// Handler de eventos para los botones del recibo
+window.accionRecibo = async function(tipo) {
+    const id = clienteReciboActual.id;
+
+    switch(tipo) {
+        case 'DESCARGAR':
+            window.open('/api/recibos/pdf-individual/' + id, '_blank');
+            break;
+            
+        case 'WHATSAPP': {
+            const mensajeWpp = generarTextoRecibo(clienteReciboActual, false);
+            abrirWhatsapp(clienteReciboActual.telefono, mensajeWpp);
+            break;
+        }
+            
+        case 'EMAIL':
+            await solicitarEnvioEmail(id);
+            break;
+            
+        case 'AMBOS': {
+            const mensajeWppAmbos = generarTextoRecibo(clienteReciboActual, true);
+            // Abrimos WhatsApp primero para prevenir el bloqueo de ventanas emergentes del navegador
+            abrirWhatsapp(clienteReciboActual.telefono, mensajeWppAmbos);
+            // Ejecutamos la petición asíncrona de envío de correo
+            await solicitarEnvioEmail(id);
+            break;
         }
     }
+};
+window.solicitarEnvioEmail = async function(id) {
+    try {
+        const resp = await fetch('/api/recibos/enviar-email/' + id, { 
+            method: 'POST' 
+        });
 
+        // Leemos la respuesta como texto para evitar el error de JSON
+        const mensaje = await resp.text();
+
+        if (resp.ok) {
+            alert(mensaje); 
+        } else {
+            throw new Error(mensaje);
+        }
+    } catch (error) {
+        alert("No se pudo enviar el correo: " + error.message);
+    }
+};
+// Funcion global para el modal de configuracion de email
+window.abrirModalConfigEmail = function() {
+    fetch('/api/configuracion/email')
+        .then(res => res.text())
+        .then(email => {
+            document.getElementById('adminEmail').value = email;
+            document.getElementById('adminPassword').value = '';
+            new bootstrap.Modal(document.getElementById('configEmailModal')).show();
+        })
+        .catch(err => alert("Error al cargar la configuracion"));
+};
+//configurar mail
+document.getElementById('formConfigEmail').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = document.getElementById('adminEmail').value;
+    const password = document.getElementById('adminPassword').value;
+    console.log("Email a guardar:", email);
+    console.log("Password a guardar:", password);
+    const payload = { email: email };
+    if (password.trim() !== '') {
+        payload.password = password;
+    }
+
+    try {
+        const resp = await fetch('/api/configuracion/email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+            alert('Configuración guardada exitosamente');
+            bootstrap.Modal.getInstance(document.getElementById('configEmailModal')).hide();
+        } else {
+            throw new Error("Error del servidor");
+        }
+    } catch (error) {
+        alert('Error al guardar la configuración');
+    }
+});
     // ============================================================
     // FILTROS
     // ============================================================

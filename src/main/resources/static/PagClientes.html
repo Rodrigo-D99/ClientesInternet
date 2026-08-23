@@ -62,7 +62,8 @@
             <button id="btnImport" class="btn btn-primary me-2">Importar Excel</button>
             <button id="btnExport" class="btn btn-success me-2">Exportar Excel</button>
             <button id="btnGenerarRecibos" class="btn btn-success me-2">Generar Recibos Globales</button>
-            <button class="btn btn-warning me-2" onclick="abrirModalConfig()">⚙️ Configurar Precios</button>
+            <button class="btn btn-warning me-2" onclick="abrirModalConfig()">Configurar Precios</button>
+            <button class="btn btn-secondary" onclick="abrirModalConfigEmail()">Configurar Email</button>
         </div>
         <div class="col-md-3">
             <label for="sizePage">Tamaño de la pagina</label>
@@ -383,6 +384,30 @@
                             </tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="configEmailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Configuración de Correo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formConfigEmail">
+                    <div class="mb-3">
+                        <label class="form-label">Correo de Gmail</label>
+                        <input type="email" class="form-control" id="adminEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Contraseña de Aplicación</label>
+                        <input type="password" class="form-control" id="adminPassword" placeholder="Dejar en blanco para mantener la actual">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Guardar credenciales</button>
+                </form>
             </div>
         </div>
     </div>
