@@ -4,8 +4,8 @@ import com.clientesinternet.entity.Configuracion;
 import com.clientesinternet.repository.ConfiguracionRepository;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map; // Importante agregar esto
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("api/configuracion")
@@ -71,5 +71,38 @@ public class ConfiguracionController {
                 .map(Configuracion::getValorString)
                 .orElse("");
         return ResponseEntity.ok(email);
+    }
+
+    @GetMapping("/instalaciones")
+    public ResponseEntity<List<Map<String, Object>>> obtenerInstalaciones() {
+        List<Configuracion> configs = configRepo.findAll();
+        List<Map<String, Object>> lista = configs.stream()
+                .filter(c -> c.getClave() != null && c.getClave().startsWith("INSTALACION_"))
+                .map(c -> {
+                    String nombreTipo = c.getClave().replace("INSTALACION_", "");
+                    return Map.of("nombre", (Object) nombreTipo, "precio", (Object) c.getValor());
+                })
+                .toList();
+        return ResponseEntity.ok(lista);
+    }
+
+    @PostMapping("/instalaciones")
+    public ResponseEntity<String> guardarInstalaciones(@RequestBody List<Map<String, Object>> instalaciones) {
+        // 1. Limpiar instalaciones previas
+        List<Configuracion> previas = configRepo.findAll().stream()
+                .filter(c -> c.getClave() != null && c.getClave().startsWith("INSTALACION_"))
+                .toList();
+        configRepo.deleteAll(previas);
+
+        // 2. Guardar las nuevas convertidas en Mayúsculas
+        for (Map<String, Object> inst : instalaciones) {
+            String nombre = String.valueOf(inst.get("nombre")).trim().toUpperCase();
+            Double precio = Double.parseDouble(String.valueOf(inst.get("precio")));
+            
+            Configuracion config = new Configuracion("INSTALACION_" + nombre, precio);
+            configRepo.save(config);
+        }
+
+        return ResponseEntity.ok("Instalaciones actualizadas correctamente");
     }
 }

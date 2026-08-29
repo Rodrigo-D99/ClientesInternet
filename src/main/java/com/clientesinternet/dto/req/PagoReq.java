@@ -14,8 +14,8 @@ import java.math.BigDecimal;
 @Builder
 public class PagoReq {
 
-    @NotNull
-    @Positive
+    @NotNull(message = "El monto es obligatorio")
+    @Positive(message = "El monto debe ser mayor a 0")
     private BigDecimal monto;
 
     @NotNull
@@ -27,5 +27,5 @@ public class PagoReq {
 
     private String nota;
     private String dniPagador;
-
+    private Boolean saldaInstalacion;
 }

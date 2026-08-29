@@ -32,6 +32,7 @@ public class Pago {
 
     @Column(length = 20)
     private String dniPagador;
+    
     private String nota;
 
     @ManyToOne

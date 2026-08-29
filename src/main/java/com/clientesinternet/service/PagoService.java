@@ -1,111 +1,161 @@
 package com.clientesinternet.service;
 
 import com.clientesinternet.dto.req.PagoReq;
-import com.clientesinternet.dto.resp.PagoHistorialResp;
 import com.clientesinternet.dto.resp.PagoResp;
+import com.clientesinternet.dto.resp.PagoHistorialResp;
 import com.clientesinternet.entity.Cliente;
+import com.clientesinternet.entity.Configuracion;
 import com.clientesinternet.entity.MedioPago;
 import com.clientesinternet.entity.Pago;
-import org.springframework.beans.factory.annotation.Autowired;
 import com.clientesinternet.repository.ClienteRepository;
+import com.clientesinternet.repository.ConfiguracionRepository;
 import com.clientesinternet.repository.PagoRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.List;
+
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class PagoService {
-    @Autowired
-    private final PagoRepository pagoRepo;
-    @Autowired
-    private final ClienteRepository clienteRepo;
 
-    public PagoService(PagoRepository pagoRepo, ClienteRepository clienteRepo) {
+    private final PagoRepository pagoRepo;
+    private final ClienteRepository clienteRepo;
+    private final ConfiguracionRepository configuracionRepository;
+
+    @Autowired
+    public PagoService(PagoRepository pagoRepo, ClienteRepository clienteRepo, ConfiguracionRepository configuracionRepository) {
         this.pagoRepo = pagoRepo;
         this.clienteRepo = clienteRepo;
+        this.configuracionRepository = configuracionRepository;
     }
 
+    public BigDecimal calcularPrecioMensual(Cliente cliente, MedioPago medioPago) {
+        BigDecimal precioBase = BigDecimal.ZERO;
+
+        if (cliente.getPlan() != null) {
+            Double precioPlan = (medioPago == MedioPago.EFECTIVO) 
+                    ? cliente.getPlan().getPrecioEfectivo() 
+                    : cliente.getPlan().getPrecioTransferencia();
+
+            if (precioPlan != null) {
+                precioBase = precioBase.add(BigDecimal.valueOf(precioPlan));
+            }
+        }
+
+        if (Boolean.TRUE.equals(cliente.getTieneFibraTV())) {
+            precioBase = precioBase.add(obtenerPrecioConfigurado("PRECIO_FIBRA_TV")); 
+        }
+
+        if (Boolean.TRUE.equals(cliente.getTieneTV())) {
+            precioBase = precioBase.add(obtenerPrecioConfigurado("PRECIO_CABLE_TV"));
+        }
+
+        return precioBase;
+    }
+    private BigDecimal obtenerPrecioConfigurado(String clave) {
+    return configuracionRepository.findById(clave)
+            .map(Configuracion::getValor)
+            .map(BigDecimal::valueOf)
+            .orElse(BigDecimal.ZERO);
+    }
     @Transactional
     public PagoResp registrarPago(Long clienteId, PagoReq req) {
 
         Cliente cliente = clienteRepo.findById(clienteId)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
 
-        Optional<String> advertencia = validarDni(req);
+        MedioPago medioPago = (req.getMedioPago() != null) ? req.getMedioPago() : MedioPago.EFECTIVO;
+        int cantidadMeses = (req.getCantidadMeses() != null && req.getCantidadMeses() > 0) ? req.getCantidadMeses() : 1;
         
-        // Usar la cantidad de meses del request o 1 por defecto
-        Integer cantidadMeses = req.getCantidadMeses() != null && req.getCantidadMeses() > 0 ? 
-                req.getCantidadMeses() : 1;
+        BigDecimal montoTotalPagado = (req.getMonto() != null) ? req.getMonto() : BigDecimal.ZERO;
+        BigDecimal montoParaMensualidad = montoTotalPagado;
 
-        // Obtener el último pago para calcular desde dónde suma
-        Pago ultimoPago = pagoRepo
-                .findTopByClienteIdOrderByPeriodoPagadoDesc(clienteId)
-                .orElse(null);
-
-        // Calcular el período hasta el que quedará pagado
-        YearMonth periodoPagadoHasta;
-        YearMonth ahora = YearMonth.now();
-        
-        if (ultimoPago != null && ultimoPago.getPeriodoPagado() != null && 
-            ultimoPago.getPeriodoPagado().isAfter(ahora)) {
-            // Si ya está pagado en meses futuros, suma desde donde quedó
-            periodoPagadoHasta = ultimoPago.getPeriodoPagado().plusMonths(cantidadMeses);
-        } else {
-            // Si no está pagado o el pago es antiguo, suma desde ahora
-            periodoPagadoHasta = ahora.plusMonths(cantidadMeses - 1);
+        // Manejo de la saldación de la Instalación con control de Null Pointer Exception
+        if (Boolean.TRUE.equals(req.getSaldaInstalacion())) {
+            Number costoRaw = cliente.getCostoInstalacion();
+            BigDecimal costoInstalacion = (costoRaw != null) 
+                    ? BigDecimal.valueOf(costoRaw.doubleValue()) 
+                    : BigDecimal.ZERO;
+            
+            // Se descuenta el valor de la instalación del dinero entregado
+            montoParaMensualidad = montoTotalPagado.subtract(costoInstalacion).max(BigDecimal.ZERO);
+            
+            // Se resetea el estado en la base de datos para este cliente
+            cliente.setDeudaInstalacion("NO");
+            cliente.setCostoInstalacion(0);
         }
+
+        BigDecimal precioMensual = calcularPrecioMensual(cliente, medioPago);
+        int mesesDeudaAnterior = cliente.calcularMesesAdeudados();
+        BigDecimal deudaAnteriorTotal = precioMensual.multiply(BigDecimal.valueOf(mesesDeudaAnterior));
+
+        BigDecimal saldoPendiente = deudaAnteriorTotal.subtract(montoParaMensualidad).max(BigDecimal.ZERO);
+
+        int mesesDeudaRestantes = 0;
+        if (precioMensual.compareTo(BigDecimal.ZERO) > 0) {
+            mesesDeudaRestantes = saldoPendiente.divide(precioMensual, 0, RoundingMode.CEILING).intValue();
+        }
+
+        cliente.setMesesAdeudadosInicial(mesesDeudaRestantes);
+        int pagadosAnteriores = (cliente.getMesesPagados() != null) ? cliente.getMesesPagados() : 0;
+        cliente.setMesesPagados(pagadosAnteriores + cantidadMeses);
+        clienteRepo.save(cliente);
+
+        YearMonth periodoInicio = (mesesDeudaAnterior > 0) 
+                ? YearMonth.now().minusMonths(mesesDeudaAnterior) 
+                : YearMonth.now();
+        
+        int mesesAvanzar = Math.max(0, cantidadMeses - 1);
+        YearMonth periodoPagado = periodoInicio.plusMonths(mesesAvanzar);
 
         Pago pago = Pago.builder()
                 .cliente(cliente)
-                .monto(req.getMonto())
-                .medioPago(req.getMedioPago())
+                .monto(montoTotalPagado) 
+                .medioPago(medioPago)
                 .cantidadMeses(cantidadMeses)
                 .dniPagador(req.getDniPagador())
                 .nota(req.getNota())
                 .fechaPago(LocalDate.now())
-                .periodoPagado(periodoPagadoHasta)
+                .periodoPagado(periodoPagado)
                 .build();
 
         pagoRepo.save(pago);
-        
-        // Actualizar el total de meses pagados del cliente (acumulativo)
-        cliente.setMesesPagados((cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0) + cantidadMeses);
-        clienteRepo.save(cliente);
-        
-        return new PagoResp(
-                pago.getId(),
-                advertencia.orElse(null)
-        );
+
+        Optional<String> advertencia = validarDni(req);
+
+        return PagoResp.builder()
+                .pagoId(pago.getId())
+                .montoPagado(montoTotalPagado)
+                .precioMensualBase(precioMensual)
+                .deudaAnteriorTotal(deudaAnteriorTotal)
+                .saldoPendiente(saldoPendiente)
+                .mesesDeudaRestantes(mesesDeudaRestantes)
+                .advertencia(advertencia.orElse(null))
+                .build();
     }
+
     @Transactional
     public void editarPago(Long id, PagoReq req) {
-        // 1. Buscamos el pago existente
         Pago pago = pagoRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pago no encontrado con id: " + id));
 
-        // 2. Calculamos la diferencia de meses si se modificó la cantidad
         if (req.getCantidadMeses() != null && req.getCantidadMeses() > 0) {
             int mesesAnteriores = pago.getCantidadMeses() != null ? pago.getCantidadMeses() : 0;
             int mesesNuevos = req.getCantidadMeses();
-            int diferenciaMeses = mesesNuevos - mesesAnteriores;
-
-            // Si hubo cambios en la cantidad de meses, actualizamos el acumulado del cliente
-            if (diferenciaMeses != 0) {
-                Cliente cliente = pago.getCliente();
-                int mesesPagadosActuales = cliente.getMesesPagados() != null ? cliente.getMesesPagados() : 0;
-                
-                // Actualizamos y guardamos el cliente
-                cliente.setMesesPagados(mesesPagadosActuales + diferenciaMeses);
-                clienteRepo.save(cliente);
+            YearMonth periodoAnterior = pago.getPeriodoPagado();
+            if (periodoAnterior != null) {
+                YearMonth inicioPeriodo = periodoAnterior.minusMonths(Math.max(mesesAnteriores - 1, 0));
+                pago.setPeriodoPagado(inicioPeriodo.plusMonths(mesesNuevos - 1L));
             }
-
             pago.setCantidadMeses(mesesNuevos);
         }
 
@@ -117,6 +167,7 @@ public class PagoService {
 
         pagoRepo.save(pago);
     }
+
     @Transactional
     public void actualizarNota(Long clienteId, String nota) {
         Pago pago = pagoRepo.findByClienteId(clienteId)
@@ -124,6 +175,7 @@ public class PagoService {
 
         pago.setNota(nota);
     }
+
     private Optional<String> validarDni(PagoReq req) {
         if (req.getMedioPago() != MedioPago.EFECTIVO &&
                 (req.getDniPagador() == null || req.getDniPagador().isBlank())) {
@@ -145,19 +197,16 @@ public class PagoService {
                     p.getNota()
                 )).collect(Collectors.toList());
     }
+
     public Map<String, Object> obtenerEstadisticasHoy() {
         LocalDate hoy = LocalDate.now();
-        
-        // Obtenemos todos los pagos registrados con la fecha de hoy
         List<Pago> pagosHoy = pagoRepo.findByFechaPago(hoy);
 
-        // Calculamos la cantidad y el monto total
         long cantidadCobros = pagosHoy.size();
         BigDecimal totalRecaudado = pagosHoy.stream()
                                             .map(Pago::getMonto)
                                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Empaquetamos los datos para enviarlos
         Map<String, Object> stats = new HashMap<>();
         stats.put("cantidadCobros", cantidadCobros);
         stats.put("totalRecaudado", totalRecaudado);

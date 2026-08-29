@@ -11,21 +11,18 @@ async function abrirModalConfig() {
     }
     
     await cargarPlanesEnConfig();
+    await cargarInstalacionesEnConfig();
     await cargarPrecioFibraTV();
     await cargarPrecioCableTV();
     configModal.show();
 }
 
-// 2. Función para crear el HTML de una fila de plan dinámico
+// 2. HTML para filas de Planes
 function crearFilaPlanHTML(plan) {
-    // BLINDAJE: Si el plan viene nulo o roto, creamos uno vacío por defecto
-    if (!plan) {
-        plan = { id: '', cantidadMB: '', precioEfectivo: '', precioTransferencia: '' };
-    }
+    if (!plan) plan = { id: '', cantidadMB: '', precioEfectivo: '', precioTransferencia: '' };
 
     const div = document.createElement('div');
     div.className = 'card mb-2 p-2 bg-light fila-plan';
-    
     div.innerHTML = `
         <input type="hidden" class="plan-id" value="${plan.id || ''}">
         <div class="row g-2 align-items-center">
@@ -42,14 +39,41 @@ function crearFilaPlanHTML(plan) {
                 <input type="number" class="form-control form-control-sm plan-transf" placeholder="Transf. $" value="${plan.precioTransferencia || ''}">
             </div>
             <div class="col-1 text-end">
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.fila-plan').remove()" title="Borrar Plan">×</button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.fila-plan').remove()">×</button>
             </div>
         </div>
     `;
     return div;
 }
 
-// 3. Cargar planes existentes desde la base de datos
+// 3. HTML para filas de Instalaciones (Fuerza MAYÚSCULAS)
+function crearFilaInstalacionHTML(inst) {
+    if (!inst) inst = { nombre: '', precio: '' };
+
+    const div = document.createElement('div');
+    div.className = 'card mb-2 p-2 bg-light fila-instalacion';
+    div.innerHTML = `
+        <div class="row g-2 align-items-center">
+            <div class="col-6">
+                <input type="text" 
+                       class="form-control form-control-sm inst-nombre" 
+                       placeholder="Tipo (ej: BASICA)" 
+                       value="${(inst.nombre || '').toUpperCase()}" 
+                       oninput="this.value = this.value.toUpperCase()" 
+                       style="text-transform: uppercase;">
+            </div>
+            <div class="col-5">
+                <input type="number" class="form-control form-control-sm inst-precio" placeholder="Precio $" value="${inst.precio || ''}">
+            </div>
+            <div class="col-1 text-end">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.fila-instalacion').remove()">×</button>
+            </div>
+        </div>
+    `;
+    return div;
+}
+
+// 4. Cargar Planes
 async function cargarPlanesEnConfig() {
     try {
         const resp = await fetch('/api/planes');
@@ -57,57 +81,71 @@ async function cargarPlanesEnConfig() {
         const container = document.getElementById('listaPlanesConfig');
         container.innerHTML = '';
 
-        // BLINDAJE: Filtramos cualquier elemento null o undefined que venga de la BD
-        if (Array.isArray(planes)) {
-            planes = planes.filter(p => p !== null && p !== undefined);
-        } else {
-            planes = [];
-        }
-
-        if (planes.length > 0) {
-            planes.forEach(plan => {
-                container.appendChild(crearFilaPlanHTML(plan));
-            });
+        if (Array.isArray(planes) && planes.length > 0) {
+            planes.filter(p => p != null).forEach(plan => container.appendChild(crearFilaPlanHTML(plan)));
         } else {
             agregarFilaPlan();
         }
     } catch (e) {
-        console.error("Error cargando los planes:", e);
+        console.error("Error cargando planes:", e);
     }
 }
 
-// 4. Agregar una fila vacía (Botón "+ Agregar Plan")
-function agregarFilaPlan() {
-    const container = document.getElementById('listaPlanesConfig');
-    container.appendChild(crearFilaPlanHTML(null));
+// 5. Cargar Precios de Instalaciones
+async function cargarInstalacionesEnConfig() {
+    try {
+        const resp = await fetch('/api/configuracion/instalaciones');
+        const instalaciones = await resp.json();
+        const container = document.getElementById('listaInstalacionesConfig');
+        container.innerHTML = '';
+
+        if (Array.isArray(instalaciones) && instalaciones.length > 0) {
+            instalaciones.forEach(inst => container.appendChild(crearFilaInstalacionHTML(inst)));
+        } else {
+            // Filas por defecto si está vacío
+            container.appendChild(crearFilaInstalacionHTML({ nombre: 'BASICA', precio: 30000 }));
+            container.appendChild(crearFilaInstalacionHTML({ nombre: 'INTERMEDIA', precio: 40000 }));
+            container.appendChild(crearFilaInstalacionHTML({ nombre: 'FULL', precio: 50000 }));
+        }
+    } catch (e) {
+        console.error("Error cargando instalaciones:", e);
+    }
 }
 
-// 5. Cargar el precio de Fibra TV
+function agregarFilaPlan() {
+    document.getElementById('listaPlanesConfig').appendChild(crearFilaPlanHTML(null));
+}
+
+function agregarFilaInstalacion() {
+    document.getElementById('listaInstalacionesConfig').appendChild(crearFilaInstalacionHTML(null));
+}
+
 async function cargarPrecioFibraTV() {
     try {
         const resp = await fetch('/api/configuracion/fibratv'); 
-        const config = await resp.json();
-        document.getElementById('inputPrecioFibraTV').value = config.valor || 0;
-    } catch (e) { 
-        console.log("Aún no hay precio de Fibra TV registrado."); 
-    }
+        if (resp.ok) {
+            const config = await resp.json();
+            document.getElementById('inputPrecioFibraTV').value = config.valorDouble ?? config.valor ?? 0;
+        }
+    } catch (e) { console.warn("Error cargando Fibra TV:", e); }
 }
+
 async function cargarPrecioCableTV() {
     try {
         const resp = await fetch('/api/configuracion/cabletv'); 
-        const config = await resp.json();
-        document.getElementById('inputPrecioCableTV').value = config.valor || 0;
-    } catch (e) { 
-        console.log("Aún no hay precio de Cable TV registrado."); 
-    }
+        if (resp.ok) {
+            const config = await resp.json();
+            document.getElementById('inputPrecioCableTV').value = config.valorDouble ?? config.valor ?? 0;
+        }
+    } catch (e) { console.warn("Error cargando Cable TV:", e); }
 }
-// 6. Guardar TODA la configuración
-async function guardarConfiguracionGeneral() {
-    const filas = document.querySelectorAll('.fila-plan');
-    const planesNuevos = [];
 
-    // Recolectar datos de todas las filas de planes
-    filas.forEach(fila => {
+// 6. Guardar TODA la Configuración
+async function guardarConfiguracionGeneral() {
+    // A. Recolectar Planes
+    const filasPlanes = document.querySelectorAll('.fila-plan');
+    const planesNuevos = [];
+    filasPlanes.forEach(fila => {
         const idInput = fila.querySelector('.plan-id');
         const id = idInput ? idInput.value : ''; 
         const mb = parseInt(fila.querySelector('.plan-mb').value);
@@ -115,46 +153,52 @@ async function guardarConfiguracionGeneral() {
         const tr = parseFloat(fila.querySelector('.plan-transf').value);
 
         if (mb > 0 && !isNaN(mb)) {
-            const planObj = { 
-                cantidadMB: mb, 
-                precioEfectivo: isNaN(ef) ? 0 : ef, 
-                precioTransferencia: isNaN(tr) ? 0 : tr 
-            };
-            
-            // BLINDAJE: Solo enviamos el ID si es un número real, si no, va sin ID para que el backend lo cree
-            if (id && id !== "null" && id !== "undefined" && id.trim() !== "") {
-                planObj.id = parseInt(id);
-            }
-            
+            const planObj = { cantidadMB: mb, precioEfectivo: isNaN(ef) ? 0 : ef, precioTransferencia: isNaN(tr) ? 0 : tr };
+            if (id && id.trim() !== "" && id !== "null") planObj.id = parseInt(id);
             planesNuevos.push(planObj);
         }
     });
 
+    // B. Recolectar Instalaciones (Siempre en Mayúsculas)
+    const filasInst = document.querySelectorAll('.fila-instalacion');
+    const instalacionesNuevas = [];
+    filasInst.forEach(fila => {
+        const nombre = fila.querySelector('.inst-nombre').value.trim().toUpperCase();
+        const precio = parseFloat(fila.querySelector('.inst-precio').value);
+
+        if (nombre !== '' && !isNaN(precio)) {
+            instalacionesNuevas.push({ nombre, precio });
+        }
+    });
+
     try {
-        // A. Guardar Planes (sincronización dinámica)
-        const respPlanes = await fetch('/api/planes/sincronizar', {
+        // Guardar Planes
+        await fetch('/api/planes/sincronizar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(planesNuevos)
         });
 
-        if (!respPlanes.ok) throw new Error("Error 500 guardando los planes en el servidor.");
+        // Guardar Instalaciones
+        await fetch('/api/configuracion/instalaciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(instalacionesNuevas)
+        });
 
-        // B. Guardar Fibra TV
-        const precioTV = document.getElementById('inputPrecioFibraTV').value;
+        // Guardar Servicios TV
+        const precioTV = document.getElementById('inputPrecioFibraTV').value || '0';
         await fetch(`/api/configuracion/fibratv?precio=${precioTV}`, { method: 'POST' });
-        
-        // C. Guardar Cable TV
-        const precioCableTV = document.getElementById('inputPrecioCableTV').value;
+
+        const precioCableTV = document.getElementById('inputPrecioCableTV').value || '0';
         await fetch(`/api/configuracion/cabletv?precio=${precioCableTV}`, { method: 'POST' });
- 
-        alert("¡Configuración guardada! Los próximos recibos usarán estos precios.");
-        configModal.hide();
-        
-       window.location.reload();
-        
+
+        alert("¡Configuración guardada exitosamente!");
+        if (configModal) configModal.hide();
+        window.location.reload();
+
     } catch (e) {
-        console.error("Error al guardar:", e);
-        alert("Ocurrió un error al guardar la configuración. Revisa la consola.");
+        console.error("Error guardando datos:", e);
+        alert("Ocurrió un error al guardar los cambios.");
     }
 }

@@ -63,13 +63,14 @@ function renderTable(clientes) {
                 </div>
             </td>`;
         }
-        let estadoInstalacion = c.deudaInstalacion === 'NO' || !c.deudaInstalacion
-        ? `<span class="badge bg-success">NO</span>`
-        : `<span class="badge bg-danger">${c.deudaInstalacion}</span>`;
+        const tieneInstalacion = c.deudaInstalacion && c.deudaInstalacion !== 'NO';
+        let estadoInstalacion = tieneInstalacion
+            ? `<span class="badge bg-danger">${c.deudaInstalacion}</span>`
+            : `<span class="badge bg-success">NO</span>`;
 
-        let montoMostrar = (c.deudaInstalacion !== 'NO' && c.costoInstalacion > 0) 
-        ? `<strong class="text-danger">$ ${c.costoInstalacion}</strong>` 
-        : `<span class="text-muted"></span>`;
+        let montoMostrar = (tieneInstalacion && c.costoInstalacion > 0) 
+            ? `<div class="small fw-bold text-danger mt-1">$ ${c.costoInstalacion}</div>` : ``;
+            
         let TVCell = '';
 
         if (c.tieneTV) {
@@ -109,10 +110,10 @@ function renderTable(clientes) {
                              width:16px; height:16px; display:inline-block; border-radius:50%;"></span>
             </td>
             <td>${c.telefono || ''}</td>
-            <td class="text-wrap" style="max-width: 200px;">${c.direccion}</td>
+            <td class="text-wrap" style="max-width: 200px;">${c.direccion|| ''}</td>
             <td>${c.email || ''}</td>
-            <td>${c.mesesAdeudados}</td>
-            <td>${c.mesesPagados || 0}</td>
+            <td>${Number(c.mesesAdeudados) || 0}</td>
+            <td>${c.mesesAdeudados > 0 ? 0 : (c.mesesPagados || 0)}</td>
             ${fibraTVCell}
             ${TVCell}
             <td>${estadoInstalacion}${montoMostrar}</td>

@@ -36,6 +36,9 @@ build/
 ### VS Code ###
 .vscode/
 
+### Prompts locales de VS Code ###
+/.github/prompts/
+
 ### Mac OS ###
 .DS_Store
 
