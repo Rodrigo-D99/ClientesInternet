@@ -24,16 +24,6 @@ public class ReciboController {
         this.clienteRepository = clienteRepository;
     }
 
-    @GetMapping("/pdf-masivo")
-    public ResponseEntity<byte[]> generarPdfMasivo() {
-        try {
-            byte[] pdfContent = pdfService.generarPdfMasivo();
-            return crearPdfResponse(pdfContent, "recibos_masivos.pdf");
-        } catch (Exception e) {
-            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
     @GetMapping("/pdf-individual/{id}")
     public ResponseEntity<byte[]> generarPdfIndividual(@PathVariable Long id) {
         try {

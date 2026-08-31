@@ -4,6 +4,7 @@ import com.clientesinternet.dto.req.NotaReq;
 import com.clientesinternet.dto.req.PagoReq;
 import com.clientesinternet.dto.resp.PagoHistorialResp;
 import com.clientesinternet.dto.resp.PagoResp;
+import com.clientesinternet.dto.resp.ResumenMensualResp;
 
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,5 +50,12 @@ public class PagoController {
         // El controlador delega toda la responsabilidad al servicio
         Map<String, Object> estadisticas = service.obtenerEstadisticasHoy();
         return ResponseEntity.ok(estadisticas);
+    }
+
+    @GetMapping("/historial-cobros")
+    public ResponseEntity<ResumenMensualResp> obtenerHistorialCobros(
+            @RequestParam int anio,
+            @RequestParam int mes) {
+        return ResponseEntity.ok(service.obtenerResumenMensual(anio, mes));
     }
 }

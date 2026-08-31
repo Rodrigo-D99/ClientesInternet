@@ -237,19 +237,27 @@ function cargarPreferenciaTamaño() {
 // ============================================================
 // ESTADÍSTICAS DEL DÍA
 // ============================================================
+let montoCobradoOculto = false;
+let totalRecaudadoValor = 0;
 async function actualizarEstadisticasHoy() {
     try {
         const resp = await fetch('/pagos/estadisticas/hoy'); // Asegúrate de que la ruta coincida con tu backend
         if (resp.ok) {
             const data = await resp.json();
             document.getElementById('countCobrosHoy').innerText = data.cantidadCobros || 0;
-            document.getElementById('montoCobradoHoy').innerText = `$${data.totalRecaudado || 0}`;
+            totalRecaudadoValor = document.getElementById('montoCobradoHoy').innerText = `$${data.totalRecaudado || 0}`;
         }
     } catch (error) {
         console.error("Error al cargar las estadísticas de hoy:", error);
     }
 }
-
+function activarBlur() {
+    montoCobradoOculto = !montoCobradoOculto;
+    const elemMonto = document.getElementById("montoCobradoHoy"); 
+    if (elemMonto) {
+        elemMonto.innerText = montoCobradoOculto ? "$•••••••" : `${totalRecaudadoValor}`;
+    }
+}
 // Llama a esta función cuando la página cargue por primera vez
 document.addEventListener("DOMContentLoaded", () => {
     actualizarEstadisticasHoy();

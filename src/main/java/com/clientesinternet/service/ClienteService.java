@@ -54,6 +54,7 @@ public class ClienteService {
                 .plan(plan)
                 .esDemo(req.getEsDemo() != null ? req.getEsDemo() : false)
                 .fechaVencimientoDemo(req.getFechaVencimientoDemo())
+                .mesesAdeudadosInicial(1)
                 .build();
 
         return castToResponse(clienteRepo.save(cliente));
@@ -96,9 +97,10 @@ public class ClienteService {
             String sort,
             String dir
     ) {
+        // Busca coincidencias tanto en nombre como en dirección
         List<Cliente> clientes = (nombre == null || nombre.isBlank())
                 ? clienteRepo.findAll()
-                : clienteRepo.findByNombreContainingIgnoreCase(nombre, Sort.by("nombre").ascending());
+                : clienteRepo.findByNombreContainingIgnoreCaseOrDireccionContainingIgnoreCase(nombre, nombre, Sort.by("nombre").ascending());
 
         List<ClienteResp> filtrados = clientes.stream()
                 .map(this::castToResponse)
@@ -125,7 +127,7 @@ public class ClienteService {
 
         List<Cliente> clientes = (nombre == null || nombre.isBlank())
                 ? clienteRepo.findAll(sortObj)
-                : clienteRepo.findByNombreContainingIgnoreCase(nombre, sortObj);
+                : clienteRepo.findByNombreContainingIgnoreCaseOrDireccionContainingIgnoreCase(nombre, nombre, sortObj);
 
         return clientes.stream()
                 .map(this::castToResponse)
@@ -136,7 +138,6 @@ public class ClienteService {
                 )
                 .toList();
     }
-
     private ClienteResp castToResponse(Cliente cliente) {
         List<Pago> pagos = cliente.getPagos();
         Pago ultimoPago = (pagos != null && !pagos.isEmpty()) 
@@ -146,7 +147,7 @@ public class ClienteService {
                 : null;
 
         int mesesAdeudados = cliente.calcularMesesAdeudados();
-        boolean deuda = mesesAdeudados > 0;
+        boolean deuda = mesesAdeudados > 0 || (cliente.getSaldoPendiente() != null && cliente.getSaldoPendiente() > 0);
 
         String dni = (cliente.getDni() != null && !cliente.getDni().isBlank()) 
                 ? cliente.getDni() 
@@ -159,6 +160,7 @@ public class ClienteService {
         boolean tieneFibraTV = (cliente.getTieneFibraTV() != null) ? cliente.getTieneFibraTV() : false;
         boolean tieneTV = (cliente.getTieneTV() != null) ? cliente.getTieneTV() : false;
         boolean esDemo = (cliente.getEsDemo() != null) ? cliente.getEsDemo() : false;
+        Double saldoPendiente = (cliente.getSaldoPendiente() != null) ? cliente.getSaldoPendiente() : 0.0;
 
         return new ClienteResp(
                 cliente.getId(),
@@ -181,7 +183,8 @@ public class ClienteService {
                 (ultimoPago != null) ? ultimoPago.getNota() : null,
                 (ultimoPago != null) ? ultimoPago.getFechaPago() : null,
                 (ultimoPago != null) ? ultimoPago.getMonto() : null,
-                (cliente.getPlan() != null) ? cliente.getPlan().getCantidadMB() : null
+                (cliente.getPlan() != null) ? cliente.getPlan().getCantidadMB() : null,
+                saldoPendiente
         );
     }
 

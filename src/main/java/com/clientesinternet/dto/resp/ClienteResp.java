@@ -31,4 +31,5 @@ public class ClienteResp {
     private LocalDate fechaUltimoPago;
     private BigDecimal montoUltimoPago;
     private Integer cantidadMB;
+    private Double saldoPendiente;
 }

@@ -65,6 +65,10 @@ public class Cliente {
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Pago> pagos;
 
+    @Column(name = "saldo_pendiente")
+    @Builder.Default
+    private Double saldoPendiente = 0.0;
+    
     @Transient
     @JsonProperty("mesesAdeudados")
     public int calcularMesesAdeudados() {

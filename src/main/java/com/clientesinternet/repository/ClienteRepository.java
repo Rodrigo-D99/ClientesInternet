@@ -11,8 +11,9 @@ import java.util.List;
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
-        List<Cliente> findByNombreContainingIgnoreCase(
-                String nombre,
-                Sort pageable
-        );
+       List<Cliente> findByNombreContainingIgnoreCaseOrDireccionContainingIgnoreCase(
+            String nombre,
+            String direccion,
+            Sort sort
+    );
 }

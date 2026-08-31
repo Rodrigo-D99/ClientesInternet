@@ -126,7 +126,6 @@ function recalcularModalPago(montoEditadoManual = false) {
     const tieneFibra = Boolean(clienteSeleccionadoPago.tieneFibraTV) && !clienteSeleccionadoPago.esDemo;
     const tieneCable = Boolean(clienteSeleccionadoPago.tieneTV);
     
-    // Asignación directa garantizando el respeto al valor $0
     const precioFibraBase = tieneFibra ? numSeguro(configPreciosCache.precioFibraTV) : 0;
     const precioCableBase = tieneCable ? numSeguro(configPreciosCache.precioCableTV) : 0;
 
@@ -159,7 +158,7 @@ function recalcularModalPago(montoEditadoManual = false) {
         }
     }
 
-    // Deuda de Instalación (sincronizada con tabla global de instalaciones)
+    // Deuda de Instalación
     let deudaInstalacionBase = 0;
     const tipoDeuda = clienteSeleccionadoPago.deudaInstalacion;
     if (tipoDeuda && tipoDeuda !== "NO" && tipoDeuda !== "false" && tipoDeuda !== false) {
@@ -185,10 +184,13 @@ function recalcularModalPago(montoEditadoManual = false) {
         }
     }
 
+    // Integración del saldo pendiente en pesos acumulado previo
+    const saldoMonetarioPrevio = numSeguro(clienteSeleccionadoPago.saldoPendiente);
+
     // Totales finales
     const tarifaMensualServicios = precioInternet + precioFibraCobrar + precioCableCobrar;
-    const montoSugerido = (tarifaMensualServicios * cantidadMeses) + deudaInstalacionCobrar;
-    const montoSugeridoDeuda = (tarifaMensualServicios * (clienteSeleccionadoPago?.mesesAdeudados+1 || 0)) + deudaInstalacionBase;
+    const montoSugerido = (tarifaMensualServicios * cantidadMeses) + deudaInstalacionCobrar + saldoMonetarioPrevio;
+    const montoSugeridoDeuda = (tarifaMensualServicios * (clienteSeleccionadoPago?.mesesAdeudados || 0)) + deudaInstalacionBase + saldoMonetarioPrevio;
 
     const inputMonto = document.getElementById("pagoMonto");
     if (inputMonto && !montoEditadoManual) {
@@ -199,7 +201,7 @@ function recalcularModalPago(montoEditadoManual = false) {
     document.getElementById("calcMontoSugerido").innerText = `$${montoSugerido}`;
     document.getElementById("calcDeudaTotal").innerText = `$${montoSugeridoDeuda}`;
     document.getElementById("calcSaldoPendiente").innerText = `${montoSugeridoDeuda - (inputMonto ? numSeguro(inputMonto.value) : 0)}$`;
-    document.getElementById("calcMesesRestantes").innerText = `${Math.max(0, (clienteSeleccionadoPago?.mesesAdeudados+1 || 0) - cantidadMeses)} mes(es)`;
+    document.getElementById("calcMesesRestantes").innerText = `${Math.max(0, (clienteSeleccionadoPago?.mesesAdeudados || 0) - cantidadMeses)} mes(es)`;
 }
 
 // Inicializar event listeners para hacer clic en los filas del modal de cobro
@@ -434,5 +436,71 @@ async function guardarEdicionFila(id) {
         location.reload();
     } catch (error) {
         alert(error.message);
+    }
+}
+const CLAVE_ACCESO = "seba123";
+
+function abrirModalHistorial() {
+    const passwordIngresada = prompt("Ingrese la contraseña para acceder al historial de cobros:");
+
+    // Validar si canceló o la clave es incorrecta
+    if (passwordIngresada === null) return; // Si toca cancelar
+    if (passwordIngresada !== CLAVE_ACCESO) {
+        alert("Contraseña incorrecta. Acceso denegado.");
+        return;
+    }
+
+    // Si la clave es correcta, abre el modal
+    const hoy = new Date();
+    const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}`;
+    document.getElementById('selectorMes').value = mesActual;
+    
+    const modal = new bootstrap.Modal(document.getElementById('modalHistorialCobros'));
+    modal.show();
+    cargarHistorialMensual();
+}
+
+async function cargarHistorialMensual() {
+    const val = document.getElementById('selectorMes').value;
+    if (!val) return;
+
+    const tbody = document.getElementById('tablaHistorialBody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Cargando datos...</td></tr>';
+
+    try {
+        const [anio, mes] = val.split('-');
+        const res = await fetch(`/pagos/historial-cobros?anio=${anio}&mes=${parseInt(mes, 10)}`);
+        
+        if (!res.ok) {
+            throw new Error(`Respuesta del servidor no válida (HTTP status ${res.status})`);
+        }
+
+        const data = await res.json();
+        const formatMonto = (num) => (num || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+
+        document.getElementById('totalEfectivoMes').textContent = `$${formatMonto(data.totalMesEfectivo)}`;
+        document.getElementById('totalDigitalMes').textContent = `$${formatMonto(data.totalMesDigital)}`;
+        document.getElementById('totalGeneralMes').textContent = `$${formatMonto(data.totalMesGeneral)}`;
+
+        tbody.innerHTML = '';
+
+        if (!data.dias || data.dias.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">No hay cobros registrados en este mes.</td></tr>';
+            return;
+        }
+
+        data.dias.forEach(dia => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${dia.fecha}</td>
+                <td class="text-success">$${formatMonto(dia.efectivo)}</td>
+                <td class="text-primary">$${formatMonto(dia.digital)}</td>
+                <td><strong>$${formatMonto(dia.totalDia)}</strong></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch (error) {
+        console.error("Error al cargar historial:", error);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center text-danger">Error: ${error.message}</td></tr>`;
     }
 }

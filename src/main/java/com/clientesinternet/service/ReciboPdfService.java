@@ -31,13 +31,6 @@ public class ReciboPdfService {
         this.configuracionRepository = configuracionRepository;
     }
 
-    public byte[] generarPdfMasivo() throws Exception {
-        List<Cliente> clientes = clienteRepository.findAll().stream()
-                .filter(c -> c.getMesesPagados() != null)
-                .toList();
-        return generarDocumentoPdf(clientes);
-    }
-
     public byte[] generarPdfIndividual(Long id) throws Exception {
         Cliente cliente = clienteRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
