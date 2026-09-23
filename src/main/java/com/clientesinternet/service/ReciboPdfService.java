@@ -17,8 +17,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Service
 public class ReciboPdfService {
@@ -67,36 +65,53 @@ public class ReciboPdfService {
                 precioTransferencia = cliente.getPlan().getPrecioTransferencia();
                 mbPlan = cliente.getPlan().getCantidadMB();
             }
+            // 1. Validar qué se pagó realmente en este último registro
+            boolean pagoFibra = ultimoPago != null && Boolean.TRUE.equals(ultimoPago.getSaldaFibra());
+            boolean pagoCable = ultimoPago != null && Boolean.TRUE.equals(ultimoPago.getSaldaCable());
+            boolean pagoInstalacion = ultimoPago != null && Boolean.TRUE.equals(ultimoPago.getSaldaInstalacion());
 
             double costofibraTV = 0;
             double costoTV = 0;
             String textoTvDetalle = "";
+            String textoTvPendiente = "";
             
+            // 2. Lógica de Fibra TV
             if (Boolean.TRUE.equals(cliente.getTieneFibraTV())) {
-                costofibraTV = obtenerPrecioTV();
-                textoTvDetalle = " + Fibra TV: $" + (int)costofibraTV;
+                Integer cantCuentas = (cliente.getCantCuentasFibraTV() != null) ? cliente.getCantCuentasFibraTV() : 1;
+                double precioTotalFibra = obtenerPrecioTV() * cantCuentas;
+                
+                if (pagoFibra) {
+                    costofibraTV = precioTotalFibra;
+                    textoTvDetalle += " + Fibra TV: $" + (int)costofibraTV + (cantCuentas > 1 ? " (" + cantCuentas + " cuentas)" : "");
+                } else {
+                    textoTvPendiente += "\n• Debe Fibra TV ($" + (int)precioTotalFibra + (cantCuentas > 1 ? " (" + cantCuentas + " cuentas)": ""+ ") - Se suma al próximo pago.");
+                }
             }
             
+            // 3. Lógica de TV por Cable
             String tieneTvCable = Boolean.TRUE.equals(cliente.getTieneTV()) ? "Sí" : "No";
-            if (tieneTvCable.equals("Sí") && obtenerPrecioCableTV() > 0) {
-                costoTV = obtenerPrecioCableTV();
-                textoTvDetalle += " + TV por Cable: $" + (int)costoTV;
+            if ("Sí".equals(tieneTvCable) && obtenerPrecioCableTV() > 0) {
+                if (pagoCable) {
+                    costoTV = obtenerPrecioCableTV();
+                    textoTvDetalle += " + TV por Cable: $" + (int)costoTV;
+                } else {
+                    textoTvPendiente += "\n• Debe TV Cable ($" + (int)obtenerPrecioCableTV() + ") - Se suma al próximo pago.";
+                }
             }
 
-            // Lógica de Instalación: Se separa la cobrada en este pago de la deuda informativa
+            // 4. Lógica de Instalación
             double costoInstalacionCobrado = 0.0;
             String textoInstalacion = null;
 
-            if (ultimoPago != null && ultimoPago.getNota() != null && ultimoPago.getNota().contains("Pago Instalación")) {
-                Matcher m = Pattern.compile("Pago Instalación \\((.*?)\\): \\$(\\d+(\\.\\d+)?)").matcher(ultimoPago.getNota());
-                if (m.find()) {
-                    String tipoInst = m.group(1);
-                    costoInstalacionCobrado = Double.parseDouble(m.group(2));
-                    textoInstalacion = "Abonó Instalación: " + tipoInst + " - $ " + String.format("%.2f", costoInstalacionCobrado);
-                }
-            } else if (cliente.getDeudaInstalacion() != null && !cliente.getDeudaInstalacion().equals("NO")) {
+            if (cliente.getDeudaInstalacion() != null && !cliente.getDeudaInstalacion().equals("NO")) {
                 double montoDeuda = (cliente.getCostoInstalacion() != null) ? cliente.getCostoInstalacion().doubleValue() : 0.0;
-                textoInstalacion = "Debe Instalación: " + cliente.getDeudaInstalacion() + " - $ " + String.format("%.2f", montoDeuda);
+                
+                if (pagoInstalacion) {
+                    costoInstalacionCobrado = montoDeuda;
+                    textoInstalacion = "Abonó Instalación: " + cliente.getDeudaInstalacion() + " - $ " + String.format("%.2f", costoInstalacionCobrado);
+                } else {
+                    textoTvPendiente = "\n• Debe Instalación: " + cliente.getDeudaInstalacion() + " - ($ " + String.format("%.2f", montoDeuda)+")";
+                }
             }
 
             PdfPTable tableRecibo = new PdfPTable(1);
@@ -138,6 +153,10 @@ public class ReciboPdfService {
             if (textoInstalacion != null) {
                 body.add(new Chunk(textoInstalacion.startsWith("Debe") ? "Debe Instalación: " : "Abonó Instalación: ", fontTitulo));
                 body.add(textoInstalacion.replace("Debe Instalación: ", "").replace("Abonó Instalación: ", "") + "\n");
+            }
+            if (!textoTvPendiente.isEmpty()) {
+                body.add(new Chunk("SERVICIOS PENDIENTES:", fontTitulo));
+                body.add(textoTvPendiente + "\n");
             }
             
             celda.addElement(body);

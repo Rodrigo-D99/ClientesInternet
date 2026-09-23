@@ -27,10 +27,12 @@ async function guardarCliente(e) {
         nombre: document.getElementById("nombre").value,
         telefono: document.getElementById("telefono").value,
         direccion: document.getElementById("direccion").value,
-        email: document.getElementById("email").value, 
+        email: document.getElementById("email").value,
+        ip: document.getElementById("ip").value !== '' ? document.getElementById("ip").value : null,
         tieneTV: document.getElementById("tieneTV").checked,
         tieneFibraTV: document.getElementById("tieneFibraTV").checked,
         usuarioFibraTV: document.getElementById("usuarioFibraTV").value || null,
+        cantCuentasFibraTV : document.getElementById("cantDeCuentas").value!== '' ? Number(document.getElementById("cantDeCuentas").value) : null,
         cantidadMB: document.getElementById("cantidadMB").value !== '' ? Number(document.getElementById("cantidadMB").value) : null,
         deudaInstalacion: document.getElementById("deudaInstalacion").value,
         costoInstalacion: document.getElementById("costoInstalacion").value ? parseFloat(document.getElementById("costoInstalacion").value) : 0,
@@ -68,9 +70,11 @@ async function editarCliente(id) {
     document.getElementById("telefono").value = c.telefono ?? "";
     document.getElementById("direccion").value = c.direccion ?? "";
     document.getElementById("email").value = c.email ?? "";
+    document.getElementById("ip").value = c.ip ?? "";
     document.getElementById("tieneTV").checked = c.tieneTV ?? false;
     document.getElementById("tieneFibraTV").checked = c.tieneFibraTV ?? false;
     document.getElementById("usuarioFibraTV").value = c.usuarioFibraTV ?? "";
+    document.getElementById("cantDeCuentas").value = c.cantCuentasFibraTV ?? "";
 
     const selectDeuda = document.getElementById("deudaInstalacion");
     const inputCosto = document.getElementById("costoInstalacion");
@@ -86,8 +90,8 @@ async function editarCliente(id) {
 
 // Limpiar formulario de cliente
 function limpiarFormulario() {
-    ["nombre", "telefono", "direccion", "email", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV",
-            "cantidadMB","deudaInstalacion","costoInstalacion"].forEach(id => {
+    ["nombre", "telefono", "direccion", "email","ip", "monto", "cantidadMeses", "dni", "nota", "medioPago", "usuarioFibraTV",
+            "cantDeCuentas","cantidadMB","deudaInstalacion","costoInstalacion"].forEach(id => {
             const el = document.getElementById(id);
             if (el) {
                 if (id === "cantidadMeses") {
@@ -253,3 +257,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+function abrirIp(ip) {
+    if (!ip) {
+        alert("No hay IP registrada para este cliente.");
+        return;
+    }
+    const url = `http://${ip}`;
+    window.open(url);
+}

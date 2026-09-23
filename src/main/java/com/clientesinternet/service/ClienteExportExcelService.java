@@ -47,7 +47,9 @@ public class ClienteExportExcelService {
             header.createCell(i++).setCellValue("Fecha último pago");
             header.createCell(i++).setCellValue("Monto último pago");
             header.createCell(i++).setCellValue("Meses adeudados");
-            // NUEVA COLUMNA
+            header.createCell(i++).setCellValue("IP");
+            header.createCell(i++).setCellValue("CantCuentasFibraTv");
+            header.createCell(i++).setCellValue("Fecha Creación");
             header.createCell(i++).setCellValue("Historial Pagos");
 
             int row = 1;
@@ -68,8 +70,10 @@ public class ClienteExportExcelService {
                 r.createCell(i++).setCellValue(c.getFechaUltimoPago() != null ? c.getFechaUltimoPago().toString() : "");
                 r.createCell(i++).setCellValue(c.getMontoUltimoPago() != null ? c.getMontoUltimoPago().doubleValue() : 0.0);
                 r.createCell(i++).setCellValue(c.getMesesAdeudados());
-
-                // LÓGICA DEL HISTORIAL: Buscamos y concatenamos
+                r.createCell(i++).setCellValue(c.getIp()!= null ? c.getIp() : "");                
+                r.createCell(i++).setCellValue(c.getCantCuentasFibraTV()!= null ? c.getCantCuentasFibraTV() : 0);
+                r.createCell(i++).setCellValue(c.getFechaCreacion() != null ? c.getFechaCreacion().toString() : "");
+                
                 List<Pago> pagos = pagoRepo.findByClienteIdOrderByFechaPagoDescIdDesc(c.getId());
                 
                 String historialStr = pagos.stream().map(p -> 

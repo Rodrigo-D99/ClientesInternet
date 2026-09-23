@@ -34,7 +34,9 @@ public class Pago {
     private String dniPagador;
     
     private String nota;
-
+    private Boolean saldaInstalacion;
+    private Boolean saldaFibra;
+    private Boolean saldaCable;
     @ManyToOne
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;

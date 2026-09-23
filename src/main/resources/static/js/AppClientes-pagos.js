@@ -9,7 +9,9 @@ let configPreciosCache = { precioFibraTV: 0, precioCableTV: 0 };
 let incluirFibraState = true;
 let incluirCableState = true;
 let incluirInstalacionState = true;
-
+let tieneFibra;
+let tieneCable;
+let cantCuentasFibra;
 // Función auxiliar de seguridad numérica para evitar fallos NaN
 function numSeguro(valor, porDefecto = 0) {
     if (valor === null || valor === undefined || valor === "") return porDefecto;
@@ -123,12 +125,11 @@ function recalcularModalPago(montoEditadoManual = false) {
 
     let precioInternet = plan ? ((medioPago === "EFECTIVO") ? numSeguro(plan.precioEfectivo) : numSeguro(plan.precioTransferencia || plan.precioEfectivo)) : 0;
 
-    const tieneFibra = Boolean(clienteSeleccionadoPago.tieneFibraTV) && !clienteSeleccionadoPago.esDemo;
-    const tieneCable = Boolean(clienteSeleccionadoPago.tieneTV);
-    
+    tieneFibra= Boolean(clienteSeleccionadoPago.tieneFibraTV) && !clienteSeleccionadoPago.esDemo;
+    tieneCable = Boolean(clienteSeleccionadoPago.tieneTV);
     const precioFibraBase = tieneFibra ? numSeguro(configPreciosCache.precioFibraTV) : 0;
     const precioCableBase = tieneCable ? numSeguro(configPreciosCache.precioCableTV) : 0;
-
+    cantCuentasFibra = tieneFibra ? numSeguro(clienteSeleccionadoPago.cantCuentasFibraTV, 1) : 1;
     const precioFibraCobrar = incluirFibraState ? precioFibraBase : 0;
     const precioCableCobrar = incluirCableState ? precioCableBase : 0;
 
@@ -136,6 +137,7 @@ function recalcularModalPago(montoEditadoManual = false) {
     const rowFibra = document.getElementById("rowFibraTV");
     if (rowFibra) {
         if (tieneFibra) {
+            document.getElementById("textFibraCobro").innerText = "+ FibraTV:" + (cantCuentasFibra > 1 ? ` (${cantCuentasFibra} cuentas)` : "");
             rowFibra.style.display = "flex";
             rowFibra.style.textDecoration = incluirFibraState ? "none" : "line-through";
             rowFibra.style.opacity = incluirFibraState ? "1" : "0.5";
@@ -188,7 +190,7 @@ function recalcularModalPago(montoEditadoManual = false) {
     const saldoMonetarioPrevio = numSeguro(clienteSeleccionadoPago.saldoPendiente);
 
     // Totales finales
-    const tarifaMensualServicios = precioInternet + precioFibraCobrar + precioCableCobrar;
+    const tarifaMensualServicios = precioInternet + precioFibraCobrar*cantCuentasFibra + precioCableCobrar;
     const montoSugerido = (tarifaMensualServicios * cantidadMeses) + deudaInstalacionCobrar + saldoMonetarioPrevio;
     const montoSugeridoDeuda = (tarifaMensualServicios * (clienteSeleccionadoPago?.mesesAdeudados || 0)) + deudaInstalacionBase + saldoMonetarioPrevio;
 
@@ -246,13 +248,13 @@ async function registrarPago(e) {
     const deudaInstalacionBase = (tipoDeuda && tipoDeuda !== "NO" && tipoDeuda !== "false" && tipoDeuda !== false) 
         ? numSeguro(clienteSeleccionadoPago?.costoInstalacion ?? clienteSeleccionadoPago?.montoInstalacion) 
         : 0;
-
+    
     if (!notaAutomatica || notaAutomatica.trim() === "") {
         const cantMeses = parseInt(document.getElementById("pagoCantidadMeses").value) || 1;
         let detalles = [];
         
         if (cantMeses > 1) detalles.push(`Abona ${cantMeses} meses`);
-        if (incluirFibraState && tieneFibra) detalles.push("Fibra TV");
+        if (incluirFibraState && tieneFibra) detalles.push("FibraTV" + (cantCuentasFibra > 1 ? ` (${cantCuentasFibra} cuentas)` : ""));
         if (incluirCableState && tieneCable) detalles.push("Cable");
         if (incluirInstalacionState && deudaInstalacionBase > 0) {
             detalles.push(`Pago Instalación (${tipoDeuda}): $${deudaInstalacionBase}`);
@@ -260,13 +262,20 @@ async function registrarPago(e) {
 
         notaAutomatica = detalles.length > 0 ? detalles.join(", ") : `Abona ${cantMeses} mes(es)`;
     }
+    ejecutarPagoDirecto(clienteId, notaAutomatica);
 
-    const pagoReq = {
+}
+
+// Ejecución de pago directo sin modal extenso
+async function ejecutarPagoDirecto(clienteId, notaAutomatica) {
+       const pagoReq = {
         monto: parseFloat(document.getElementById("pagoMonto").value),
         medioPago: document.getElementById("pagoMedioPago").value,
         cantidadMeses: parseInt(document.getElementById("pagoCantidadMeses").value) || 1,
         dniPagador: document.getElementById("pagoDni").value || null,
         saldaInstalacion: incluirInstalacionState,
+        saldaFibra: incluirFibraState,
+        saldaCable: incluirCableState,
         nota: notaAutomatica
     };
     
@@ -309,32 +318,6 @@ async function registrarPago(e) {
 
     } catch (error) {
         alert("Error al registrar el pago: " + error.message);
-    }
-}
-
-// Ejecución de pago directo sin modal extenso
-async function ejecutarPagoDirecto(clienteId) {
-    const pagoReq = {
-        monto: parseFloat(document.getElementById("monto").value),
-        medioPago: document.getElementById("medioPago").value,
-        cantidadMeses: parseInt(document.getElementById("cantidadMeses").value) || 1,
-        nota: document.getElementById("nota").value || null,
-        dniPagador: document.getElementById("dni").value || null
-    };
-
-    if (!pagoReq.medioPago) {
-        throw new Error("Debe seleccionar un Medio de Pago para registrar el monto.");
-    }
-
-    const resp = await fetch(`/pagos/${clienteId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pagoReq)
-    });
-
-    if (!resp.ok) {
-        const errorDelBackend = await resp.text(); 
-        throw new Error(`El pago rebotó en el servidor (Error ${resp.status}). Detalle: ${errorDelBackend}`);
     }
 }
 

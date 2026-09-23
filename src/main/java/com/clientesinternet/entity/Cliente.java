@@ -29,7 +29,7 @@ public class Cliente {
     private String direccion;
     private String email; 
     private String sort;
-    
+    private String ip;
     @Builder.Default
     private Integer mesesPagados = 0;
 
@@ -44,12 +44,12 @@ public class Cliente {
     private Boolean tieneTV = false;
     
     private String usuarioFibraTV;
+    private Integer cantCuentasFibraTV;
     
     @Builder.Default
     private Boolean esDemo = false;
     
     private LocalDate fechaVencimientoDemo;
-    
     @ManyToOne
     @JoinColumn(name = "plan_id")
     private PlanInternet plan;
@@ -61,7 +61,16 @@ public class Cliente {
 
     @Builder.Default
     private Integer costoInstalacion = 0;
+    @Column(name = "fecha_creacion")
+    private LocalDate fechaCreacion;
 
+    @PrePersist
+    protected void onCreate() {
+        if (this.fechaCreacion == null) {
+            this.fechaCreacion = LocalDate.now();
+        }
+    }
+    
     @OneToMany(mappedBy = "cliente", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Pago> pagos;
 

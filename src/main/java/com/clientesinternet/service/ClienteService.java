@@ -16,6 +16,7 @@ import com.clientesinternet.repository.PlanInternetRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
@@ -44,9 +45,11 @@ public class ClienteService {
                 .telefono(req.getTelefono())
                 .direccion(req.getDireccion())
                 .email(req.getEmail())
+                .ip(req.getIp())
                 .tieneTV(req.getTieneTV() != null ? req.getTieneTV() : false)
                 .tieneFibraTV(req.getTieneFibraTV() != null ? req.getTieneFibraTV() : false)
                 .usuarioFibraTV(req.getUsuarioFibraTV())
+                .cantCuentasFibraTV(req.getCantCuentasFibraTV())
                 .dni(req.getDni())
                 .deudaInstalacion(req.getDeudaInstalacion() != null ? req.getDeudaInstalacion() : "NO")
                 .costoInstalacion("NO".equalsIgnoreCase(req.getDeudaInstalacion()) ? 0 :
@@ -69,9 +72,11 @@ public class ClienteService {
         cliente.setTelefono(req.getTelefono());
         cliente.setDireccion(req.getDireccion());
         cliente.setEmail(req.getEmail());
+        cliente.setIp(req.getIp());
         cliente.setTieneTV(req.getTieneTV());
         cliente.setTieneFibraTV(req.getTieneFibraTV());
         cliente.setUsuarioFibraTV(req.getUsuarioFibraTV());
+        cliente.setCantCuentasFibraTV(req.getCantCuentasFibraTV());
         cliente.setDni(req.getDni());
         cliente.setEsDemo(req.getEsDemo());
         cliente.setFechaVencimientoDemo(req.getFechaVencimientoDemo());
@@ -168,11 +173,13 @@ public class ClienteService {
                 cliente.getTelefono(),
                 cliente.getDireccion(),
                 cliente.getEmail(),
+                cliente.getIp(),
                 deuda,
                 mesesAdeudados,
                 mesesPagados,
                 tieneFibraTV,
                 cliente.getUsuarioFibraTV(),
+                cliente.getCantCuentasFibraTV(),
                 tieneTV,
                 esDemo,
                 cliente.getFechaVencimientoDemo(),
@@ -184,7 +191,8 @@ public class ClienteService {
                 (ultimoPago != null) ? ultimoPago.getFechaPago() : null,
                 (ultimoPago != null) ? ultimoPago.getMonto() : null,
                 (cliente.getPlan() != null) ? cliente.getPlan().getCantidadMB() : null,
-                saldoPendiente
+                saldoPendiente,
+                cliente.getFechaCreacion()
         );
     }
 
@@ -192,6 +200,8 @@ public class ClienteService {
         Comparator<ClienteResp> comparador = switch (sort == null ? "nombre" : sort) {
             case "mesesAdeudados" -> Comparator.comparingInt(ClienteResp::getMesesAdeudados);
             case "mesesPagados" -> Comparator.comparingInt(ClienteResp::getMesesPagados);
+            case "fechaCreacion" -> Comparator.comparing(
+                    c -> c.getFechaCreacion() == null ? LocalDate.MIN : c.getFechaCreacion());
             case "medioPago" -> Comparator.comparing(
                     c -> c.getMedioPago() == null ? "" : c.getMedioPago(),
                     String::compareToIgnoreCase);
@@ -201,7 +211,6 @@ public class ClienteService {
         };
         return "desc".equalsIgnoreCase(dir) ? comparador.reversed() : comparador;
     }
-
     public void delete(Long id) {
         clienteRepo.delete(clienteRepo.findById(id).orElseThrow(() -> new RuntimeException("Cliente no encontrado")));
     }

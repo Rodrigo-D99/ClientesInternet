@@ -103,6 +103,7 @@ function renderTable(clientes) {
         // Crear fila
         const tr = document.createElement('tr');
         tr.innerHTML = `
+            <td>${c.fechaCreacion ? c.fechaCreacion.split('-').reverse().join('/') : ''}</td>
             <td class="text-wrap" style="max-width: 200px;">
                 ${c.nombre}
                 <span class="badge ms-2"
@@ -112,6 +113,7 @@ function renderTable(clientes) {
             <td>${c.telefono || ''}</td>
             <td class="text-wrap" style="max-width: 200px;">${c.direccion|| ''}</td>
             <td>${c.email || ''}</td>
+            <td><div class="mb-1"onclick='abrirIp(${JSON.stringify(c.ip)})'>${c.ip || ''}</div></td>
             <td>${Number(c.mesesAdeudados) || 0}</td>
             <td>${c.mesesAdeudados > 0 ? 0 : (c.mesesPagados || 0)}</td>
             ${fibraTVCell}

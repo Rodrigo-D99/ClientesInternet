@@ -15,21 +15,24 @@ public class ClienteResp {
     private String telefono;
     private String direccion;
     private String email;
+    private String ip;
     private boolean tieneDeuda;
     private int mesesAdeudados;
     private int mesesPagados;
     private boolean tieneFibraTV;
     private String usuarioFibraTV;
+    private Integer cantCuentasFibraTV;
     private Boolean tieneTV;
     private boolean esDemo;
     private LocalDate fechaVencimientoDemo;
     private String medioPago; 
     private String dni;
     private String deudaInstalacion;
-    private Integer costoInstalacion;       
+    private Integer costoInstalacion;   
     private String nota;      
     private LocalDate fechaUltimoPago;
     private BigDecimal montoUltimoPago;
     private Integer cantidadMB;
     private Double saldoPendiente;
+    private LocalDate fechaCreacion;    
 }

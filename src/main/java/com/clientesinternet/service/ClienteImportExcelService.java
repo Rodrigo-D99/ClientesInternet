@@ -85,9 +85,11 @@ public class ClienteImportExcelService {
                         .telefono(getCell(row, 1))
                         .direccion(getCell(row, 2))
                         .email(getCell(row, 3))
+                        .ip(getCell(row, 14))
                         .plan(planAsignado)
                         .tieneFibraTV(tieneFibraTV)
                         .usuarioFibraTV(usuarioFibraTV)
+                        .cantCuentasFibraTV(getCell(row, 15) != null ? (int) Double.parseDouble(getCell(row, 15)) : null)
                         .dni(getCell(row, 9))
                         .mesesPagados(mesesPagados)
                         .mesesAdeudadosInicial(mesesAdeudadosInicial) 
@@ -98,7 +100,7 @@ public class ClienteImportExcelService {
                 importados++;
 
                 // 2. Procesamos el Historial de Pagos
-                String historialStr = getCell(row, 14); 
+                String historialStr = getCell(row, 16); 
                 
                 if (historialStr != null && !historialStr.isBlank()) {
                     String[] pagosArray = historialStr.split("\\|");

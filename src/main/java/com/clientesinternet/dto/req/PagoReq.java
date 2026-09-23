@@ -28,4 +28,6 @@ public class PagoReq {
     private String nota;
     private String dniPagador;
     private Boolean saldaInstalacion;
+    private Boolean saldaFibra;
+    private Boolean saldaCable;
 }

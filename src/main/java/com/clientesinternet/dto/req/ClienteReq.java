@@ -17,13 +17,16 @@ public class ClienteReq {
 
     private String direccion;
     private String email;
+    private String ip;
     private Boolean tieneFibraTV;
     private Boolean tieneTV;
     private String usuarioFibraTV;
+    private Integer cantCuentasFibraTV;
     private Boolean esDemo;
     private java.time.LocalDate fechaVencimientoDemo;
     private Integer cantidadMB;
     private String dni;
     private String deudaInstalacion;
     private Integer costoInstalacion;
+    private java.time.LocalDate fechaCreacion;
 }

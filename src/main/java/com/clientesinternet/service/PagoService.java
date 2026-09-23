@@ -138,6 +138,9 @@ public PagoResp registrarPago(Long clienteId, PagoReq req) {
             .nota(req.getNota())
             .fechaPago(LocalDate.now())
             .periodoPagado(periodoPagado)
+            .saldaInstalacion(req.getSaldaInstalacion())
+            .saldaFibra(req.getSaldaFibra())
+            .saldaCable(req.getSaldaCable())
             .build();
 
     pagoRepo.save(pago);

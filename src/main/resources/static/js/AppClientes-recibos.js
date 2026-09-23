@@ -155,7 +155,6 @@ function generarTextoRecibo(cliente, esAmbos) {
     }
 
     msg += `-----------------------------------\n`;
-    msg += `*TOTAL FACTURADO:* $${totalFacturado.toFixed(2)}\n`;
     msg += `*MONTO ABONADO:* $${montoAbonado.toFixed(2)}\n`;
 
     if (saldoFinal > 0) {
